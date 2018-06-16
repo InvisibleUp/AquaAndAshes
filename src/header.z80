@@ -1,0 +1,74 @@
+; rst vectors go unused
+SECTION "rst00",ROM0[0]
+    ret
+
+SECTION "rst08",ROM0[8]
+    ret
+
+SECTION "rst10",ROM0[$10]
+    ret
+
+SECTION "rst18",ROM0[$18]
+    ret
+
+SECTION "rst20",ROM0[$20]
+    ret
+
+SECTION "rst30",ROM0[$30]
+    ret
+
+SECTION "rst38",ROM0[$38]
+    ret
+
+SECTION "vblank",ROM0[$40]
+	jp vblank
+SECTION "lcdc",ROM0[$48]
+	reti
+SECTION "timer",ROM0[$50]
+	reti
+SECTION "serial",ROM0[$58]
+	reti
+SECTION "joypad",ROM0[$60]
+	reti
+
+SECTION "bank0",ROM0[$61]
+
+SECTION "romheader",ROM0[$100]
+nop
+jp main
+
+; $0104 - $0133: The Nintendo Logo.
+DB $CE, $ED, $66, $66, $CC, $0D, $00, $0B
+DB $03, $73, $00, $83, $00, $0C, $00, $0D
+DB $00, $08, $11, $1F, $88, $89, $00, $0E
+DB $DC, $CC, $6E, $E6, $DD, $DD, $D9, $99
+DB $BB, $BB, $67, $63, $6E, $0E, $EC, $CC
+DB $DD, $DC, $99, $9F, $BB, $B9, $33, $3E
+; $0134 - $0142: The title, in upper-case letters, followed by zeroes.
+DB "TEST           "
+; $0143: Gameboy Color compatibility flag.    
+DB BOOT_GBC_UNSUPPORTED
+; $0144 - $0145: "New" Licensee Code, a two character name.
+DB "OK"
+; $0146: Super Gameboy compatibility flag.
+DB BOOT_SGB_UNSUPPORTED
+; $0147: Cartridge type. Either no ROM or MBC5 is recommended.
+DB BOOT_CART_ROM
+; $0148: Rom size.
+DB BOOT_ROM_32K
+; $0149: Ram size.
+DB BOOT_RAM_NONE
+; $014A: Destination code.
+DB BOOT_DEST_INTERNATIONAL
+; $014B: Old licensee code.
+; $33 indicates new license code will be used.
+; $33 must be used for SGB games.
+DB $33
+; $014C: ROM version number
+DB $00
+; $014D: Header checksum.
+; Assembler needs to patch this.
+DB $FF
+; $014E- $014F: Global checksum.
+; Assembler needs to patch this.
+DW $FACE

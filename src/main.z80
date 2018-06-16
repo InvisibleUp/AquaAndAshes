@@ -1,0 +1,87 @@
+include "src/constants.z80"
+include "src/variables.z80"
+include "src/gameboy.z80" ; GB constants
+
+SECTION "rom", ROM0
+include "src/header.z80" ; ROM header
+
+; Core Libraries
+include "src/memory.z80"
+include "src/display.z80"
+
+; Interrupt handlers
+vblank:
+    ; Jumping here clears vblank flag automatically
+    push hl
+    ld hl, GB_SCROLL_X
+    dec [hl]
+    dec [hl]
+    ld hl, GB_SCROLL_Y
+    dec [hl]
+    pop hl
+    reti
+
+; Main Loop
+main:
+    ; Set interrupts
+    xor a
+    ld [GB_INTERRUPT_FLAG], a
+    ld a, GB_INTERRUPT_VBLANK
+    ld [GB_INTERRUPT_ENABLE], a
+
+    ; Set stack to top of HiRAM
+    ld sp, $FFFE
+
+    di ; Interrupts need to be off for waiting to work
+    call DisableLCD
+    
+    ; Set palette
+    ld a, %11100100
+    ld [GB_PALETTE_BG], a
+    ld [GB_PALETTE_OBJ1], a
+    ld [GB_PALETTE_OBJ2], a
+
+    ; Set scroll position
+    xor a
+    ld [GB_SCROLL_X], a
+    ld [GB_SCROLL_Y], a
+
+    ; Clear VRAM
+    ld hl, $8000
+    ld bc, $9FFF - $8000
+    ld a, $FF
+    call memset
+
+    ld hl, $FE00
+    ld bc, $FE9F - $FE00
+    xor a
+    call memset
+
+    ; Load graphics
+    ld hl, .testgfx
+    ld de, $9000
+    ld bc, 704
+    call memcpy
+
+    ld hl, .testgfxmap
+    ld de, GB_RAM_MAP
+    ld bc, 32*4
+    call memcpy
+
+    ; Init display
+    call InitDisplay
+    ei
+
+.loop:
+    halt
+    jr .loop
+
+.testgfx:
+    incbin "gfx/gfx.bin"
+.testgfxmap:
+    DB $0,$1,$2,$3,$4,$5,$6,$7,$8,$9,$A,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+    DB $B,$C,$D,$E,$F,$10,$11,$12,$13,$14,$15,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+    DB $16,$17,$18,$19,$1A,$1B,$1C,$1D,$1E,$1F,$20,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+    DB $21,$22,$23,$24,$25,$26,$27,$28,$29,$2A,$2B,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+
+

@@ -1,0 +1,31 @@
+;; Macros
+WaitForVBlank: MACRO
+	ld   hl,GB_INTERRUPT_FLAG           ; Load interrupt flag byte into HL
+.wait	halt                                ; suspend CPU - wait for ANY interrupt
+	bit  GB_INTERRUPT_VBLANK_BIT, [hl]  ; VBlank interrupt flag on?
+	jr   z, .wait                       ; wait more if zero
+	res  GB_INTERRUPT_VBLANK_BIT, [hl]  ; set vblank_flag back to zero
+	ENDM
+
+;; Functions
+
+; Uses a, b
+DisableLCD: ; $0061
+	WaitForVBlank
+	ld a,[GB_LCD_CTRL]
+	res GB_LCD_CTRL_BIT_ENABLE,a
+	ld [GB_LCD_CTRL],a
+	ret
+
+; Uses a
+EnableLCD:
+	ld a,[GB_LCD_CTRL]
+	set GB_LCD_CTRL_BIT_ENABLE,a
+	ld [GB_LCD_CTRL],a
+	ret
+
+InitDisplay:
+	ld a, GB_LCD_CTRL_ON | GB_LCD_CTRL_BG_ON | GB_LCD_CTRL_OBJ_ON | \
+	      GB_LCD_CTRL_OBJ_8x8 | GB_LCD_CTRL_BG_MAP1 | GB_LCD_CTRL_TILESET1
+	ld [GB_LCD_CTRL],a
+	ret
