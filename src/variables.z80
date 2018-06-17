@@ -1,11 +1,3 @@
-SECTION "WRAM",WRAM0[$C000]
-FieldX:
-	DS 2
-GlobalTimer:
-	DS 1
-WramEnd:
-
-SECTION "HRAM",HRAM
 ; OBJECT STRUCTURE
 RSRESET
 ; bit 7 = is active?
@@ -28,8 +20,59 @@ charAnimSpeed  RB 1
 charAnimTimer  RB 1
 charSizeOf     RB 0
 
-; Define 8 of those for now
+; Object graphics structure
+RSRESET
+; bit 7 = is active?
+; bit 6 = team [Gecko = 0, Fox = 1]
+; bit 5 = player or football? [0 or 1]
+; bit 4 = direction (1 = left, 0 = right)
+; bits 0-3 = animation frame
+	; 0 = standing
+	; 1 = thinking
+	; 2 = running
+	; 3 = jumping
+	; 4 = tackled
+	; 5 - 16 = reserved
+charRenderInfo       RB 1
+charRenderY          RB 1
+charRenderX          RB 1
+charRenderAnimTimer  RB 1
+charRenderSizeOf     RB 0
+
+FieldHeight EQU $60
+
+SECTION "WRAM",WRAM0[$C000]
+FieldX:
+	DS 2
+GlobalTimer:
+	DS 1
+WaitingForVBlank: ; 0 = waiting, 1 = busy
+	DS 1
+
+ParallaxLayer1:
+	DS 1
+ParallaxLayer2:
+	DS 1
+ParallaxLayer3:
+	DS 1
+
+DS 1 ; filler
+
+; Define 8 objects
 charStruct:
-; Our 4 objects are offense attacking, defense attcking, ball attacking, defense defending
-DS charSizeOf * 4
+DS charSizeOf * 8
 charStruct_end:
+
+WramEnd:
+
+SECTION "SpriteTable",WRAMX[$DF00]
+SpriteTable:
+DS $9F
+SpriteTable_End:
+
+SECTION "HRAM",HRAM
+; 8 renderable objects
+charRenderStruct:
+DS charRenderSizeOf  * 8
+charRenderStruct_end:
+

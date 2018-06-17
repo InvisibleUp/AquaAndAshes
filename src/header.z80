@@ -25,7 +25,7 @@ SECTION "vblank",ROM0[$40]
 SECTION "lcdc",ROM0[$48]
 	reti
 SECTION "timer",ROM0[$50]
-	jp timer
+	reti
 SECTION "serial",ROM0[$58]
 	reti
 SECTION "joypad",ROM0[$60]

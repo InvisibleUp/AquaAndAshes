@@ -23,7 +23,7 @@ gfx_arcticfox_tail0003:
     incbin "gfx/bin/arcticfox-tail0003.png.bin"
 
 gfx_arcticfox_thinking0000:
-arcticfox_thinking_tile EQU arcticfox_tail_tile + ((gfx_arcticfox_thinking0000 - gfx_arcticfox_tail0000) / 16)
+arcticfox_thinking_tile EQU (gfx_arcticfox_thinking0000 - gfx_start) / 16
 ;arcticfox_thinking0000_tile RB (gfx_arcticfox_thinking0000 - gfx_arcticfox_tail0003) / 64
     incbin "gfx/bin/arcticfox-thinking0000.png.bin"
 
@@ -32,10 +32,64 @@ gfx_arcticfox_thinking0001:
     incbin "gfx/bin/arcticfox-thinking0001.png.bin"
 
 gfx_gecko_standing:
+gecko_standing_tile EQU (gfx_gecko_standing - gfx_start) / 16
     incbin "gfx/bin/gecko-standing.png.bin"
+
 gfx_gecko_thinking0000:
+gecko_thinking_tile EQU (gfx_gecko_thinking0000 - gfx_start) / 16
     incbin "gfx/bin/gecko-thinking0000.png.bin"
 gfx_gecko_thinking0001:
     incbin "gfx/bin/gecko-thinking0001.png.bin"
 gfx_end:
+
+; BACKGROUNDS
+bg_start:
+
+bg_sky:
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+bg_grass:
+    dw `12121112
+    dw `12121212
+    dw `22112211
+    dw `11121212
+    dw `22112211
+    dw `21212121
+    dw `12121212
+    dw `12211222
+bg_grass_top:
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `20020000
+    dw `20202020
+    dw `02021212
+    dw `12211222
+bg_dirt:
+    dw `00000000
+    dw `10101010
+    dw `00000000
+    dw `10101010
+    dw `00000000
+    dw `01010101
+    dw `00000000
+    dw `01010101
+bg_end:
+
+bgmap_start:
+    db 0,0,0,2,1,1,1,1,1,3,3,3,3,1,1,1,1
+bgmap_end:
+
+font:
+    incbin "gfx/bin/8x8font.png.bin"
+    incbin "gfx/bin/8x8numbers.png.bin"
+font_end:
+
 SECTION "ENDGFX",ROM0

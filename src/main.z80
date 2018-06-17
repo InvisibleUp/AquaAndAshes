@@ -17,77 +17,105 @@ SECTION "main", ROM0
 ; Interrupt handlers
 vblank:
     ; Jumping here clears vblank flag automatically
-    ;push hl
-    ;ld hl, GB_SCROLL_X
-    ;dec [hl]
-    ;dec [hl]
-    ;ld hl, GB_SCROLL_Y
-    ;dec [hl]
-    ;pop hl
+    push af
+    ld a, [WaitingForVBlank]
+    jr nz, .return ; Lag!
 
-    call RenderSprites
+    call $FF80 ; Update sprites
+
+    ; Scroll
+    ld hl, GB_SCROLL_X
+    dec [hl]
+
+    ld a, 1
+    ld [WaitingForVBlank], a
+
+.return:
+    pop af
     reti
 
-timer:
-    push hl
-    push bc
-    push af
-
+updateTimer:
     ld hl, GlobalTimer
     inc [hl]
-    ld b, [hl]
-    ld c, $80 + charAnimSpeed
-    and a, 8
+    ld b, [hl] ; B = Global Timer
+    ld hl, charStruct
 
 .objloop:
-    ld a, [$ff00+c] ; A = timer speed
+    ld a, [hl]
+    ld c, a ; C = Attributes
+
+    push bc
+    ld bc, charAnimSpeed
+    add hl, bc
+    pop bc
+
+    bit 7, c
+    jr z, .objloop_checkdone
+
+    ld a, [hl] ; A = timer speed
     sub a, 0
     jr z, .updateobjtimer
 
-    ld h, a
+    ld d, a
+    ld e, b
 .shiftloop:
-    srl b
+    srl e
     jr nc, .objloop_checkdone ; If all bits are not 1, don't update
-    dec h
+    dec d
     jr nz, .shiftloop
 
 .updateobjtimer
-    inc c
-    ld a, [$ff00+c] ; A = timer
+    inc hl
+    ld a, [hl] ; A = timer
     inc a
-    ld [$ff00+c], a
-    dec c
+    ld [hl], a
+    dec hl
 
 .objloop_checkdone:
-    ld a, charSizeOf
-    add a, c
-    ld c, a
-    ld a, $80 + (charStruct_end - charStruct) + charAnimSpeed
-    cp a, c
+    inc hl
+    inc hl
+    ld de, charStruct_end
+    ld a, e
+    cp l
+    jr nz, .objloop
+    ld a, d
+    cp h
     jr nz, .objloop
 
-    pop af
-    pop bc
-    pop hl
     reti
 
-; Main Loop
-main:
-    ; Set interrupts and timers
+clearRAM:
+   ; Clear RAM and VRAM
     xor a
-    ld [GB_INTERRUPT_FLAG], a
-    ld [GB_TIMER_MODULO], a
-    ld a, GB_INTERRUPT_VBLANK | GB_INTERRUPT_TIMER
-    ld [GB_INTERRUPT_ENABLE], a
-    ld a, GB_TIMER_CTRL_START | GB_TIMER_CTRL_CLOCK_4096
-    ld [GB_TIMER_CTRL], a
 
-    ; Set stack to top of HiRAM
-    ld sp, $FFFE
+    ld hl, $C000
+    ld bc, WramEnd - $C000
+    call memset
 
+    ld hl, charRenderStruct
+    ld bc, charRenderStruct_end - charRenderStruct
+    call memset
+
+    ld hl, SpriteTable
+    ld bc, SpriteTable_End - SpriteTable
+    call memset
+
+    ; VRAM tiles
+    ld hl, $8000
+    ld bc, $9FFF - $8000
+    call memset
+
+    ; VRAM sprites
+    ld hl, $FE00
+    ld bc, $FE9F - $FE00
+    call memset
+
+    ret
+
+LoadGFX:
     di ; Interrupts need to be off for waiting to work
     call DisableLCD
-    
+
     ; Set palette
     ld a, %11100100
     ld [GB_PALETTE_BG], a
@@ -102,26 +130,8 @@ main:
     ld [GB_SCROLL_X], a
     ld [GB_SCROLL_Y], a
 
-    ; Clear RAM and VRAM
-    ld hl, $C000
-    ld bc, WramEnd - $C000
-    xor a
-    call memset
-
-    ld hl, charStruct
-    ld bc, charStruct_end - charStruct
-    xor a
-    call memset
-
-    ld hl, $8000
-    ld bc, $9FFF - $8000
-    ld a, $FF
-    call memset
-
-    ld hl, $FE00
-    ld bc, $FE9F - $FE00
-    xor a
-    call memset
+    ; Clear RAM
+    call clearRAM
 
     ; Load graphics
     ld hl, gfx_start
@@ -129,25 +139,126 @@ main:
     ld bc, gfx_end - gfx_start
     call memcpy
 
-    ; Make a dummy object
-    ld c, $80
-    ld a, %11000000
-    ld [$ff00+c], a
-    inc c
-    ld a, 64
-    ld [$ff00+c], a
-    inc c
-    xor a
-    ld [$ff00+c], a
-    inc c
-    ld a, 64
-    ld [$ff00+c], a
+    ld hl, font
+    ld de, GB_RAM_TILE + $800
+    ld bc, font_end - font
+    call memcpy
 
-    ; Init display
+    ld hl, bg_start
+    ld de, GB_RAM_TILE + $1000
+    ld bc, bg_end - bg_start
+    call memcpy
+
+    ; Load background
+    ld de, bgmap_start
+    ld hl, GB_RAM_MAP
+    ld b, 17
+.bgLoop_Row:
+    ld c, 32
+.bgLoop_Column:
+    ld a, [de]
+    ld [hl+], a
+    dec c
+    jr nz, .bgLoop_Column
+
+    inc de
+    dec b
+    jr nz, .bgLoop_Row
+
+    ; Lay down some text
+    ld hl, GB_RAM_MAP + 32
+    ld a, $85
+    ld [hl+], a
+    ld [hl+], a
+    ld [hl+], a
+    ld [hl+], a
+
     call InitDisplay
     ei
+ret
+
+; Main Loop
+main:
+    ; Set interrupts and timers
+    xor a
+    ld [GB_INTERRUPT_FLAG], a
+    ld [GB_TIMER_MODULO], a
+    ld a, GB_INTERRUPT_VBLANK
+    ld [GB_INTERRUPT_ENABLE], a
+    ;ld a, GB_TIMER_CTRL_START | GB_TIMER_CTRL_CLOCK_4096
+    ;ld [GB_TIMER_CTRL], a
+
+    ; Set stack to top of HiRAM
+    ld sp, $FFFE
+
+    ; Init VDP
+    call LoadGFX
+
+    ; Init objects
+    ld hl, charStruct
+    ld a, %11010000 ; Snowfox, facing left
+    ld [hl+], a
+    ld a, FieldHeight ; Y
+    ld [hl+], a
+    xor a ; X High
+    ld [hl+], a
+    ld a, $80 ; X low
+    ld [hl+], a
+    xor a ; Dx, Dy
+    ld [hl+], a
+    ld [hl+], a
+    ld a, 3 ; Animation speed
+    ld [hl+], a
+    inc hl
+
+    ld a, %10000000 ; Gecko, facing right
+    ld [hl+], a
+    ld a, FieldHeight ; Y
+    ld [hl+], a
+    xor a ; X High
+    ld [hl+], a
+    ld a, $40 ; X low
+    ld [hl+], a
+    xor a ; Dx, Dy
+    ld [hl+], a
+    ld [hl+], a
+    ld a, 0 ; Animation speed
+    ld [hl+], a
+    inc hl
 
 .loop:
+    ; Game logic
+    call updateTimer
+
+    ld hl, FieldX
+    ld a, [hl+]
+    ld d, a
+    ld a, [hl]
+    ld e, a
+    inc de
+    ld a, e
+    ld [hl-], a
+    ld a, d
+    ld [hl], a
+
+    ; Prepare graphics data
+    call PrepareSprites
+    call BakeSprites
+
+    ; Copy DMA code to WRAM
+    ld hl, SpriteDMA
+    ld de, $FF80
+    ld bc, SpriteDMA_End - SpriteDMA
+    call memcpy
+
+    ; Wait for VBlank
+    xor a
+    ld [WaitingForVBlank], a
+.VBlankWait
     halt
+    ld a, [WaitingForVBlank]
+    sub a, 0
+    jr z, .VBlankWait
+
     jr .loop
 ; End Main

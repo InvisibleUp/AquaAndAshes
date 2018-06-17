@@ -1,11 +1,9 @@
-; hl = sprite RAM
-; c = object HiRAM offset
+; hl = object RAM pointer
 ; uses A register as scratch
-; uses B register for temp storage
 ; uses D register for temp storage
 ; uses E register for temp storage
 GetScreenX:
-	push hl ; I NEED hl for this
+	push hl
 	; Load FieldX into hl
 	ld hl, FieldX
 	ld a, [hl+]
@@ -15,11 +13,13 @@ GetScreenX:
 	ld l, a
 
 	; Load ObjX into de
-	inc c
-	ld a, [$ff00+c]
+	pop bc
+	push bc
+	ld a, [bc]
+	inc bc
 	ld d, a
-	inc c
-	ld a, [$ff00+c]
+	ld a, [bc]
+	inc bc
 	ld e, a
 
 	; ObjX - FieldX (as -FieldX + ObjX)
@@ -31,58 +31,52 @@ GetScreenX:
 	pop hl
 ret
 
+; c = src
+; hl = dest
 RenderFox:
 ; Render tail object ( 2 sprites )
+
 	;; Sprite 1
+	; e = attributes
+	ld a, [$ff00+c]
+	ld e, a
+
 	; Y
 	inc c
 	ld a, [$ff00+c] ; raw Y is real Y
 	ld [hl+], a
 
 	; X
-	call GetScreenX
+	inc c
+	ld a, [$ff00+c] ; raw X is real X
+	ld b, a
 	; add or subtract 8 depending on direction
 	; This is because coordinate is relative to body. not tail
-	dec c
-	dec c
-	dec c
-	ld b, a
-	ld a, [$ff00+c]
+	ld a, e
 	and a, %10000 ; Direction
-	xor a, 255 ; Negate if left, noop if right
-	inc a ; Adjust for xor
-	sub a, 8
+	ld d, a
+	;sra d
+	or a, d
+	sub a, 8 ; Make 8 or -8
 	add a, b
 
-	inc de
 	ld [hl+], a 
 
 	; Tile Index
-	ld d, arcticfox_tail_tile
-
-	ld a, 7
-	add a, c
-	ld c, a
+	inc c
 	ld a, [$ff00+c]
 	and a, %11
 	sla a
 	sla a
-	;and a, %11000000
-	;swap a ; %0000XX00
-	add a, d
+	add a, arcticfox_tail_tile
 	ld [hl+], a
 
 	; Tile attributes
-	ld a, b
+	ld a, e
 	and a, %10000 ; Direction
 	sla a ; Shift to direction flag pos
 	or a, %10000 ; OBJ2 palette
 	ld [hl+], a
-
-	; Rewind object pointer
-	ld a, c
-	sub a, 7
-	ld c, a
 
 	;; Sprite 2
 	; Set src to last sprite
@@ -92,6 +86,12 @@ RenderFox:
 	dec de
 	dec de
 	dec de
+
+	; Rewind object pointer
+	dec c
+	dec c
+	dec c
+
 	; Y
 	ld a, [de]
 	ld [hl+], a
@@ -134,7 +134,7 @@ RenderFox:
 	ld a, arcticfox_standing_tile
 	ld [hl+], a
 	inc de
-	; Attributes (same + priority bit)
+	; Attributes (same)
 	ld a, [de]
 	ld [hl+], a
 	inc de
@@ -165,7 +165,7 @@ RenderFox:
 	sub a, 16
 	ld [hl+], a
 	inc de
-	; X, add or subtract 8 from tail base depending on direction
+	; X, add or subtract 8 depending on direction
 	ld a, [de]
 	ld b, a
 	ld a, [$ff00+c]
@@ -205,27 +205,139 @@ RenderFox:
 	ld a, [de]
 	ld [hl+], a
 	inc de
-
-; FFW object pointer to next object
-	ld a, c
-	add a, 8
-	ld c, a
 ret
 
-; a = starting sprite ID
-; hl = object RAM
+; c = src
+; hl = dest
 RenderGecko:
+	;; Top-left
+	; Store attributes
+	ld a, [$ff00+c]
+	ld e, a
+	inc c
+	; Y
+	ld a, [$ff00+c]
+	sub a, 16
+	ld [hl+], a
+	inc c
+	; X
+	ld a, [$ff00+c]
 
+	ld b, a
+	; add or subtract 8 depending on direction
+	ld a, e
+	and a, %10000 ; Direction
+	ld d, a
+	or a, d
+	sub a, 8 ; Make 8 or -8
+	add a, b
+
+	ld [hl+], a
+	inc c
+	; Tile (from start)
+	ld a, gecko_standing_tile
+	ld [hl+], a
+	; Attributes
+	ld a, e
+	and a, %10000 ; Direction
+	sla a ; Shift to direction flag pos
+	ld [hl+], a
+
+	; Set src to last sprite
+	ld d, h
+	ld e, l
+	dec de
+	dec de
+	dec de
+	dec de
+
+	; Rewind object pointer
+	dec c
+	dec c
+	dec c
+
+	;; Bottom-right
+	; Y (+16)
+	ld a, [de]
+	add a, 16
+	ld [hl+], a
+	inc de
+	; X (same)
+	ld a, [de]
+	ld [hl+], a
+	inc de
+	; Tile (plus 2)
+	ld a, [de]
+	add a, 2
+	ld [hl+], a
+	inc de
+	; Attributes (same)
+	ld a, [de]
+	ld [hl+], a
+	inc de
+
+	;; Top-right
+	; Y (-16)
+	ld a, [de]
+	sub a, 16
+	ld [hl+], a
+	inc de
+	; X, add or subtract 8 depending on direction
+	ld a, [de]
+	ld b, a
+	ld a, [$ff00+c]
+	and a, %10000 ; Direction
+	xor a, 255 ; Negate if left, noop if right
+	inc a ; Adjust for xor
+	add a, 8
+	add a, b
+	ld [hl+], a
+	inc de
+	; Tile (plus 2)
+	ld a, [de]
+	add a, 2
+	ld [hl+], a
+	inc de
+	; Attributes (same)
+	ld a, [de]
+	ld [hl+], a
+	inc de
+
+	;; Bottom-right
+	; Y (+16)
+	ld a, [de]
+	add a, 16
+	ld [hl+], a
+	inc de
+	; X (same)
+	ld a, [de]
+	ld [hl+], a
+	inc de
+	; Tile (plus 2)
+	ld a, [de]
+	add a, 2
+	ld [hl+], a
+	inc de
+	; Attributes (same)
+	ld a, [de]
+	ld [hl+], a
+	inc de
+ret
+
+RenderBucket:
+ret
+
+RenderTorch:
 ret
 
 ; No arguments
 ; Uses A, C, HL registers
-; Renders all sprites in object table
+; Converts everything in object table to something usable by DMA
 ; c = OBJ HiRAM offset
 ; hl = Sprite Table offset
-RenderSprites:
-	;ld c, (.charStruct_end - .charStruct) / charSizeOf
-	ld hl, GB_RAM_OBJ
+BakeSprites:
+	ld c, (charRenderStruct_end - charRenderStruct) / charSizeOf
+	ld hl, SpriteTable
 	ld c, $80
 
 .Loop
@@ -240,16 +352,75 @@ RenderSprites:
 	jr z, .Gecko
 
 .ArcticFox
-	call RenderFox
+	; Test for object type
+	bit 5, a
+	call z, RenderFox
+	call nz, RenderBucket
 	jr .CheckDone
 .Gecko
-	call RenderGecko
+	bit 5, a
+	call z, RenderGecko
+	call nz, RenderTorch
 
 .CheckDone
 	ld a, c
-	add a, charSizeOf
+	add a, charRenderSizeOf
 	ld c, a
-	cp a, ($80 + charStruct_end - charStruct)
+	cp a, ($80 + charRenderStruct_end - charRenderStruct)
 	jr nz, .Loop
 
 ret
+
+PrepareSprites:
+	ld hl, charStruct
+	ld c, $80
+.loop:
+	; Info bitfield
+	ld a, [hl+]
+	ld [$ff00+c], a
+	inc c
+
+	; Y
+	ld a, [hl+]
+	ld [$ff00+c], a
+	inc c
+
+	; X
+	;call GetScreenX
+	inc hl
+	ld a, [hl+]
+	ld b, a
+	ld a, [FieldX+1]
+	sub a, b
+	ld [$ff00+c], a 
+	inc c
+	inc hl ; Dx
+	inc hl ; Dy
+	inc hl ; Speed
+	;inc hl ; Timer
+
+	; Animation timer
+	ld a, [hl+]
+	ld [$ff00+c], a
+	inc c
+
+	ld de, charStruct_end
+	ld a, e
+	sub a, l
+	jr nz, .loop
+	ld a, d
+	sub a, h
+	jr nz, .loop
+
+ret
+
+; Don't call directly!
+SpriteDMA:
+	ld a, SpriteTable / $100
+	ldh [$FF46], a ;start DMA transfer (starts right after instruction)
+	ld  a, $28     ;delay...
+.wait:                 ;total 5x40 cycles, approx 200ms
+	dec a          ;1 cycle
+	jr  nz, .wait  ;4 cycles
+	ret
+SpriteDMA_End:
