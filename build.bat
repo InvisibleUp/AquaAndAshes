@@ -1,5 +1,5 @@
 @echo off
-for %%f in (gfx/*.png) do rgbds\rgbgfx -o gfx/bin/%%f.bin gfx/%%f
+for %%f in (gfx/*.png) do rgbds\rgbgfx -h -o gfx/bin/%%f.bin gfx/%%f
 if %errorlevel% neq 0 call :exit 1
 rgbds\rgbasm -ogame.obj .\src\main.z80
 if %errorlevel% neq 0 call :exit 1

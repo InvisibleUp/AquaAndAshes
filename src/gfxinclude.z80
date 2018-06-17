@@ -1,0 +1,41 @@
+; GRAPHICS DATA
+SECTION "GFX",ROMX,BANK[1]
+gfx_start:
+
+gfx_arcticfox_standing:
+arcticfox_standing_tile EQU 0
+    incbin "gfx/bin/arcticfox-standing.png.bin"
+
+gfx_arcticfox_tail0000:
+arcticfox_tail_tile EQU ((gfx_arcticfox_tail0000 - gfx_arcticfox_standing) / 16)
+    incbin "gfx/bin/arcticfox-tail0000.png.bin"
+
+gfx_arcticfox_tail0001:
+;arcticfox_tail0001_tile RB (gfx_arcticfox_tail0001 - gfx_arcticfox_tail0000) / 64
+    incbin "gfx/bin/arcticfox-tail0001.png.bin"
+
+gfx_arcticfox_tail0002:
+;arcticfox_tail0002_tile RB (gfx_arcticfox_tail0002 - gfx_arcticfox_tail0001) / 64
+    incbin "gfx/bin/arcticfox-tail0002.png.bin"
+
+gfx_arcticfox_tail0003:
+;arcticfox_tail0003_tile RB (gfx_arcticfox_tail0003 - gfx_arcticfox_tail0002) / 64
+    incbin "gfx/bin/arcticfox-tail0003.png.bin"
+
+gfx_arcticfox_thinking0000:
+arcticfox_thinking_tile EQU arcticfox_tail_tile + ((gfx_arcticfox_thinking0000 - gfx_arcticfox_tail0000) / 16)
+;arcticfox_thinking0000_tile RB (gfx_arcticfox_thinking0000 - gfx_arcticfox_tail0003) / 64
+    incbin "gfx/bin/arcticfox-thinking0000.png.bin"
+
+gfx_arcticfox_thinking0001:
+;arcticfox_thinking0001_tile RB (gfx_arcticfox_thinking0001 - gfx_arcticfox_thinking0000) / 64
+    incbin "gfx/bin/arcticfox-thinking0001.png.bin"
+
+gfx_gecko_standing:
+    incbin "gfx/bin/gecko-standing.png.bin"
+gfx_gecko_thinking0000:
+    incbin "gfx/bin/gecko-thinking0000.png.bin"
+gfx_gecko_thinking0001:
+    incbin "gfx/bin/gecko-thinking0001.png.bin"
+gfx_end:
+SECTION "ENDGFX",ROM0

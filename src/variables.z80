@@ -1,1 +1,35 @@
 SECTION "WRAM",WRAM0[$C000]
+FieldX:
+	DS 2
+GlobalTimer:
+	DS 1
+WramEnd:
+
+SECTION "HRAM",HRAM
+; OBJECT STRUCTURE
+RSRESET
+; bit 7 = is active?
+; bit 6 = team [Gecko = 0, Fox = 1]
+; bit 5 = player or football? [0 or 1]
+; bit 4 = direction (1 = left, 0 = right)
+; bits 0-3 = animation frame
+	; 0 = standing
+	; 1 = thinking
+	; 2 = running
+	; 3 = jumping
+	; 4 = tackled
+	; 5 - 16 = reserved
+charInfo       RB 1
+charY          RB 1
+charX          RW 1
+charDx         RB 1
+charDy         RB 1
+charAnimSpeed  RB 1
+charAnimTimer  RB 1
+charSizeOf     RB 0
+
+; Define 8 of those for now
+charStruct:
+; Our 4 objects are offense attacking, defense attcking, ball attacking, defense defending
+DS charSizeOf * 4
+charStruct_end:

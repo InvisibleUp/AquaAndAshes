@@ -1,0 +1,255 @@
+; hl = sprite RAM
+; c = object HiRAM offset
+; uses A register as scratch
+; uses B register for temp storage
+; uses D register for temp storage
+; uses E register for temp storage
+GetScreenX:
+	push hl ; I NEED hl for this
+	; Load FieldX into hl
+	ld hl, FieldX
+	ld a, [hl+]
+	ld d, a
+	ld a, [hl+]
+	ld h, d
+	ld l, a
+
+	; Load ObjX into de
+	inc c
+	ld a, [$ff00+c]
+	ld d, a
+	inc c
+	ld a, [$ff00+c]
+	ld e, a
+
+	; ObjX - FieldX (as -FieldX + ObjX)
+	NegateHL
+	add hl, de
+
+	; Get low byte and exit
+	ld a, l
+	pop hl
+ret
+
+RenderFox:
+; Render tail object ( 2 sprites )
+	;; Sprite 1
+	; Y
+	inc c
+	ld a, [$ff00+c] ; raw Y is real Y
+	ld [hl+], a
+
+	; X
+	call GetScreenX
+	; add or subtract 8 depending on direction
+	; This is because coordinate is relative to body. not tail
+	dec c
+	dec c
+	dec c
+	ld b, a
+	ld a, [$ff00+c]
+	and a, %10000 ; Direction
+	xor a, 255 ; Negate if left, noop if right
+	inc a ; Adjust for xor
+	sub a, 8
+	add a, b
+
+	inc de
+	ld [hl+], a 
+
+	; Tile Index
+	ld d, arcticfox_tail_tile
+
+	ld a, 7
+	add a, c
+	ld c, a
+	ld a, [$ff00+c]
+	and a, %11
+	sla a
+	sla a
+	;and a, %11000000
+	;swap a ; %0000XX00
+	add a, d
+	ld [hl+], a
+
+	; Tile attributes
+	ld a, b
+	and a, %10000 ; Direction
+	sla a ; Shift to direction flag pos
+	or a, %10000 ; OBJ2 palette
+	ld [hl+], a
+
+	; Rewind object pointer
+	ld a, c
+	sub a, 7
+	ld c, a
+
+	;; Sprite 2
+	; Set src to last sprite
+	ld d, h
+	ld e, l
+	dec de
+	dec de
+	dec de
+	dec de
+	; Y
+	ld a, [de]
+	ld [hl+], a
+	inc de
+	; X, add or subtract 8 depending on direction
+	ld a, [de]
+	ld b, a
+	ld a, [$ff00+c]
+	and a, %10000 ; Direction
+	xor a, 255 ; Negate if left, noop if right
+	inc a ; Adjust for xor
+	add a, 8
+	add a, b
+	ld [hl+], a
+	inc de
+	; Tile (next tail tile)
+	ld a, [de]
+	inc a
+	inc a
+	ld [hl+], a
+	inc de
+	; Attributes (same)
+	ld a, [de]
+	ld [hl+], a
+	inc de
+
+; Render body ( 4 sprites )
+	;; Top-left
+	; Y
+	ld a, [de]
+	sub a, 16
+	ld [hl+], a
+	inc de
+	; X, move left one to fight layering issues
+	ld a, [de]
+	dec a
+	ld [hl+], a
+	inc de
+	; Tile (from start)
+	ld a, arcticfox_standing_tile
+	ld [hl+], a
+	inc de
+	; Attributes (same + priority bit)
+	ld a, [de]
+	ld [hl+], a
+	inc de
+
+	;; Bottom-right
+	; Y (+16)
+	ld a, [de]
+	add a, 16
+	ld [hl+], a
+	inc de
+	; X (same)
+	ld a, [de]
+	ld [hl+], a
+	inc de
+	; Tile (plus 2)
+	ld a, [de]
+	add a, 2
+	ld [hl+], a
+	inc de
+	; Attributes (same)
+	ld a, [de]
+	ld [hl+], a
+	inc de
+
+	;; Top-right
+	; Y (-16)
+	ld a, [de]
+	sub a, 16
+	ld [hl+], a
+	inc de
+	; X, add or subtract 8 from tail base depending on direction
+	ld a, [de]
+	ld b, a
+	ld a, [$ff00+c]
+	and a, %10000 ; Direction
+	xor a, 255 ; Negate if left, noop if right
+	inc a ; Adjust for xor
+	add a, 8
+	add a, b
+	ld [hl+], a
+	inc de
+	; Tile (plus 2)
+	ld a, [de]
+	add a, 2
+	ld [hl+], a
+	inc de
+	; Attributes (same)
+	ld a, [de]
+	ld [hl+], a
+	inc de
+
+	;; Bottom-right
+	; Y (+16)
+	ld a, [de]
+	add a, 16
+	ld [hl+], a
+	inc de
+	; X (same)
+	ld a, [de]
+	ld [hl+], a
+	inc de
+	; Tile (plus 2)
+	ld a, [de]
+	add a, 2
+	ld [hl+], a
+	inc de
+	; Attributes (same)
+	ld a, [de]
+	ld [hl+], a
+	inc de
+
+; FFW object pointer to next object
+	ld a, c
+	add a, 8
+	ld c, a
+ret
+
+; a = starting sprite ID
+; hl = object RAM
+RenderGecko:
+
+ret
+
+; No arguments
+; Uses A, C, HL registers
+; Renders all sprites in object table
+; c = OBJ HiRAM offset
+; hl = Sprite Table offset
+RenderSprites:
+	;ld c, (.charStruct_end - .charStruct) / charSizeOf
+	ld hl, GB_RAM_OBJ
+	ld c, $80
+
+.Loop
+	; Test if sprite is active
+	ld a, [$ff00+c]
+	;bit 7, [hl]
+	bit 7, a
+	jr z, .CheckDone
+
+	; Test for team
+	bit 6, a
+	jr z, .Gecko
+
+.ArcticFox
+	call RenderFox
+	jr .CheckDone
+.Gecko
+	call RenderGecko
+
+.CheckDone
+	ld a, c
+	add a, charSizeOf
+	ld c, a
+	cp a, ($80 + charStruct_end - charStruct)
+	jr nz, .Loop
+
+ret

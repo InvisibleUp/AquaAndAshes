@@ -1,0 +1,93 @@
+; http://map.grauw.nl/articles/mult_div_shifts.php
+
+;Multiply 8-bit values
+;In:  Multiply H with E
+;Out: HL = result
+;Clobbers: d, b, l
+Mult8:
+	ld d,0
+	ld l,d
+	ld b,8
+Mult8_Loop:
+	add hl,hl
+	jr nc,Mult8_NoAdd
+	add hl,de
+Mult8_NoAdd:
+	dec b
+	jr nz, Mult8_Loop
+	ret
+
+
+;
+;Multiply 8-bit value with a 16-bit value
+;In: Multiply A with DE
+;Out: HL = result
+;Clobbers: B
+Mult12:	ld l,0
+	ld b,8
+Mult12_Loop:
+	add hl,hl
+	add a,a
+	jr nc,Mult12_NoAdd
+	add hl,de
+Mult12_NoAdd:
+	dec b
+	jr nz, Mult12_Loop
+	ret
+
+
+;
+;Multiply 16-bit values (with 16-bit result)
+;In: Multiply BC with DE
+;Out: HL = result
+;
+Mult16:	ld a,b
+	ld b,16
+Mult16_Loop:
+	add hl,hl
+	sla c
+	rla
+	jr nc,Mult16_NoAdd
+	add hl,de
+Mult16_NoAdd:
+	dec b
+	jr nz, Mult16_Loop
+	ret
+
+
+;
+;Multiply 16-bit values (with 32-bit result)
+;In: Multiply BC with DE
+;Out: BCHL = result
+;
+Mult32:	ld a,c
+	ld c,b
+	ld hl,0
+	ld b,16
+Mult32_Loop:
+	add hl,hl
+	rla
+	rl c
+	jr nc,Mult32_NoAdd
+	add hl,de
+	adc a,0
+	jr nc,Mult32_NoAdd
+	inc c
+Mult32_NoAdd:
+	dec b
+	jr nz, Mult32_Loop
+	ld b,c
+	ld c,a
+	ret
+
+NegateHL: MACRO
+	ld a, 255
+	xor a, h
+	ld h, a
+
+	ld a, 255
+	xor a, l
+	ld l, a
+	
+	inc hl
+ENDM
