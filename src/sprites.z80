@@ -101,8 +101,8 @@ RenderFox:
 	ld b, a
 	ld a, [$ff00+c]
 	and a, %10000 ; Direction
-	xor a, 255 ; Negate if left, noop if right
-	inc a ; Adjust for xor
+	cpl ; Negate if left, noop if right
+	inc a ; Adjust for cpl
 	add a, 8
 	add a, b
 	ld [hl+], a
@@ -170,7 +170,7 @@ RenderFox:
 	ld b, a
 	ld a, [$ff00+c]
 	and a, %10000 ; Direction
-	xor a, 255 ; Negate if left, noop if right
+	cpl ; Negate if left, noop if right
 	inc a ; Adjust for xor
 	add a, 8
 	add a, b
@@ -287,8 +287,8 @@ RenderGecko:
 	ld b, a
 	ld a, [$ff00+c]
 	and a, %10000 ; Direction
-	xor a, 255 ; Negate if left, noop if right
-	inc a ; Adjust for xor
+	cpl ; Negate if left, noop if right
+	inc a ; Adjust for cpl
 	add a, 8
 	add a, b
 	ld [hl+], a

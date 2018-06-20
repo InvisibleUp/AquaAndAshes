@@ -12,6 +12,7 @@ include "src/math.z80"
 ; Game stuff
 include "src/gfxinclude.z80"
 include "src/sprites.z80"
+include "src/background.z80"
 
 SECTION "main", ROM0
 ; Interrupt handlers
@@ -24,15 +25,35 @@ vblank:
     call $FF80 ; Update sprites
 
     ; Scroll
-    ld hl, GB_SCROLL_X
-    dec [hl]
+    call decParallax
 
+    ; Reset X scroll to 0
+    xor a
+    ld [GB_SCROLL_X], a
+    
+    ; Finish
     ld a, 1
     ld [WaitingForVBlank], a
 
 .return:
     pop af
     reti
+
+lcdc:
+    push af
+    push hl
+
+    ldh a, [StatJmpLoc]
+    ld h, a
+    ldh a, [StatJmpLoc+1]
+    ld l, a
+
+    jp hl ; This better be valid...
+
+lcdc_return:
+    pop hl
+	pop af
+	reti
 
 updateTimer:
     ld hl, GlobalTimer
@@ -88,16 +109,12 @@ clearRAM:
    ; Clear RAM and VRAM
     xor a
 
-    ld hl, $C000
-    ld bc, WramEnd - $C000
+    ld hl, WramStart
+    ld bc, WramEnd - WramStart
     call memset
 
-    ld hl, charRenderStruct
-    ld bc, charRenderStruct_end - charRenderStruct
-    call memset
-
-    ld hl, SpriteTable
-    ld bc, SpriteTable_End - SpriteTable
+    ld hl, HramStart
+    ld bc, HramEnd - HramStart
     call memset
 
     ; VRAM tiles
@@ -152,7 +169,7 @@ LoadGFX:
     ; Load background
     ld de, bgmap_start
     ld hl, GB_RAM_MAP
-    ld b, 17
+    ld b, 18
 .bgLoop_Row:
     ld c, 32
 .bgLoop_Column:
@@ -181,10 +198,11 @@ ret
 main:
     ; Set interrupts and timers
     xor a
-    ld [GB_INTERRUPT_FLAG], a
-    ld [GB_TIMER_MODULO], a
-    ld a, GB_INTERRUPT_VBLANK
-    ld [GB_INTERRUPT_ENABLE], a
+    ldh [GB_INTERRUPT_FLAG], a
+    ;ld [GB_TIMER_MODULO], a
+    ld a, GB_INTERRUPT_VBLANK | GB_INTERRUPT_STAT
+    ldh [GB_INTERRUPT_ENABLE], a
+
     ;ld a, GB_TIMER_CTRL_START | GB_TIMER_CTRL_CLOCK_4096
     ;ld [GB_TIMER_CTRL], a
 
@@ -226,7 +244,36 @@ main:
     ld [hl+], a
     inc hl
 
+    ; Copy DMA code to WRAM
+    ld hl, SpriteDMA
+    ld de, $FF80
+    ld bc, SpriteDMA_End - SpriteDMA
+    call memcpy
+
+    ; Set parallax interrupt
+    ld hl, scrollLayer1
+	ld a, h
+	ldh [StatJmpLoc], a
+	ld a, l
+	ldh [StatJmpLoc+1], a
+    ld a, 32
+
+    ; Turn on parallax stuff now that it's safe-ish
+    ld a, GB_LCD_STAT_SCANLINE_ENABLE
+    ldh [GB_LCD_STAT], a 
+
+    WaitForVBlank
+
 .loop:
+    ; Set parallax interrupt
+    ld hl, scrollLayer1
+	ld a, h
+	ldh [StatJmpLoc], a
+	ld a, l
+	ldh [StatJmpLoc+1], a
+    ld a, 32
+    ldh [GB_SCANLINE_TRIGGER], a
+
     ; Game logic
     call updateTimer
 

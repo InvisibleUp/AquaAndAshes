@@ -8,16 +8,13 @@ WaitForVBlank: MACRO
 	ENDM
 
 ;; Functions
-
-; Uses a, b
-DisableLCD: ; $0061
+DisableLCD:
 	WaitForVBlank
 	ld a,[GB_LCD_CTRL]
 	res GB_LCD_CTRL_BIT_ENABLE,a
 	ld [GB_LCD_CTRL],a
 	ret
 
-; Uses a
 EnableLCD:
 	ld a,[GB_LCD_CTRL]
 	set GB_LCD_CTRL_BIT_ENABLE,a

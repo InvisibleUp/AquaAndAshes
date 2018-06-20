@@ -91,3 +91,29 @@ NegateHL: MACRO
 	
 	inc hl
 ENDM
+
+; a = a mod 3
+; b destroyed
+; https://www.cemetech.net/forum/viewtopic.php?t=12784&start=0
+Modulo3:
+	ld b,0          ;7    07
+	;inc a           ;4    11
+	;ret z           ;5    16    ;if A was 255, A mod 3 = 0
+	;scf             ;4    20     ;otherwise, inc and calculate mod below
+	sub a, $FF
+	ret z
+	rra
+	sbc a,b   ;8    28
+	rra
+	sbc a,b   ;8    36
+	rra
+	sbc a,b   ;8    44
+	rra
+	sbc a,b   ;8    52
+	rra
+	sbc a,b   ;8    60
+	rra
+	sbc a,5   ;11   71
+	ret nc          ;~3   74
+	add a,3         ;~3   77
+	ret             ;10   87

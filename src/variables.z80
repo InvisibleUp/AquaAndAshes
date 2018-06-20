@@ -42,18 +42,19 @@ charRenderSizeOf     RB 0
 FieldHeight EQU $60
 
 SECTION "WRAM",WRAM0[$C000]
-FieldX:
-	DS 2
+WramStart:
 GlobalTimer:
 	DS 1
 WaitingForVBlank: ; 0 = waiting, 1 = busy
 	DS 1
 
-ParallaxLayer1:
+FieldX:
+	DS 2
+ParallaxLayer1: ; Above path
 	DS 1
-ParallaxLayer2:
+ParallaxLayer2: ; Path
 	DS 1
-ParallaxLayer3:
+ParallaxLayer3: ; Below path
 	DS 1
 
 DS 1 ; filler
@@ -63,16 +64,20 @@ charStruct:
 DS charSizeOf * 8
 charStruct_end:
 
-WramEnd:
-
 SECTION "SpriteTable",WRAMX[$DF00]
 SpriteTable:
 DS $9F
 SpriteTable_End:
+WramEnd:
 
 SECTION "HRAM",HRAM
+HramStart:
 ; 8 renderable objects
 charRenderStruct:
 DS charRenderSizeOf  * 8
 charRenderStruct_end:
+
+StatJmpLoc:
+DW
+HramEnd:
 

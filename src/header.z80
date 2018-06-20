@@ -22,8 +22,8 @@ SECTION "rst38",ROM0[$38]
 
 SECTION "vblank",ROM0[$40]
 	jp vblank
-SECTION "lcdc",ROM0[$48]
-	reti
+SECTION "lcdc",ROM0[$48] ; LCD STAT
+    jp lcdc
 SECTION "timer",ROM0[$50]
 	reti
 SECTION "serial",ROM0[$58]
