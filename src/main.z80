@@ -15,7 +15,7 @@ include "src/sprites.z80"
 include "src/background.z80"
 
 SECTION "main", ROM0
-; Interrupt handlers
+
 vblank:
     ; Jumping here clears vblank flag automatically
     push af
@@ -37,23 +37,17 @@ vblank:
 
 .return:
     pop af
-    reti
+reti
 
 lcdc:
     push af
     push hl
 
-    ldh a, [StatJmpLoc]
+    ld a, [StatJmpLoc]
     ld h, a
-    ldh a, [StatJmpLoc+1]
+    ld a, [StatJmpLoc+1]
     ld l, a
-
     jp hl ; This better be valid...
-
-lcdc_return:
-    pop hl
-	pop af
-	reti
 
 updateTimer:
     ld hl, GlobalTimer
@@ -130,7 +124,6 @@ clearRAM:
     ret
 
 LoadGFX:
-    di ; Interrupts need to be off for waiting to work
     call DisableLCD
 
     ; Set palette
@@ -191,7 +184,6 @@ LoadGFX:
     ld [hl+], a
 
     call InitDisplay
-    ei
 ret
 
 ; Main Loop
@@ -206,43 +198,43 @@ main:
     ;ld a, GB_TIMER_CTRL_START | GB_TIMER_CTRL_CLOCK_4096
     ;ld [GB_TIMER_CTRL], a
 
-    ; Set stack to top of HiRAM
-    ld sp, $FFFE
+    ; Set stack to top of WRAM
+    ld sp, $DFFE
 
     ; Init VDP
     call LoadGFX
 
     ; Init objects
-    ld hl, charStruct
-    ld a, %11010000 ; Snowfox, facing left
-    ld [hl+], a
-    ld a, FieldHeight ; Y
-    ld [hl+], a
-    xor a ; X High
-    ld [hl+], a
-    ld a, $80 ; X low
-    ld [hl+], a
-    xor a ; Dx, Dy
-    ld [hl+], a
-    ld [hl+], a
-    ld a, 3 ; Animation speed
-    ld [hl+], a
-    inc hl
-
-    ld a, %10000000 ; Gecko, facing right
-    ld [hl+], a
-    ld a, FieldHeight ; Y
-    ld [hl+], a
-    xor a ; X High
-    ld [hl+], a
-    ld a, $40 ; X low
-    ld [hl+], a
-    xor a ; Dx, Dy
-    ld [hl+], a
-    ld [hl+], a
-    ld a, 0 ; Animation speed
-    ld [hl+], a
-    inc hl
+;    ld hl, charStruct
+;    ld a, %11010000 ; Snowfox, facing left
+;    ld [hl+], a
+;    ld a, FieldHeight ; Y
+;    ld [hl+], a
+;    xor a ; X High
+;    ld [hl+], a
+;    ld a, $80 ; X low
+;    ld [hl+], a
+;    xor a ; Dx, Dy
+;    ld [hl+], a
+;    ld [hl+], a
+;    ld a, 3 ; Animation speed
+;    ld [hl+], a
+;    inc hl
+;
+;    ld a, %10000000 ; Gecko, facing right
+;    ld [hl+], a
+;    ld a, FieldHeight ; Y
+;    ld [hl+], a
+;    xor a ; X High
+;    ld [hl+], a
+;    ld a, $40 ; X low
+;    ld [hl+], a
+;    xor a ; Dx, Dy
+;    ld [hl+], a
+;    ld [hl+], a
+;    ld a, 0 ; Animation speed
+;    ld [hl+], a
+;    inc hl
 
     ; Copy DMA code to WRAM
     ld hl, SpriteDMA
@@ -251,12 +243,14 @@ main:
     call memcpy
 
     ; Set parallax interrupt
-    ld hl, scrollLayer1
+    ld hl, scrollLayer
 	ld a, h
-	ldh [StatJmpLoc], a
+	ld [StatJmpLoc], a
 	ld a, l
-	ldh [StatJmpLoc+1], a
-    ld a, 32
+	ld [StatJmpLoc+1], a
+
+    ; Set parallax data pointers
+    call initScrollLayer
 
     ; Turn on parallax stuff now that it's safe-ish
     ld a, GB_LCD_STAT_SCANLINE_ENABLE
@@ -265,14 +259,8 @@ main:
     WaitForVBlank
 
 .loop:
-    ; Set parallax interrupt
-    ld hl, scrollLayer1
-	ld a, h
-	ldh [StatJmpLoc], a
-	ld a, l
-	ldh [StatJmpLoc+1], a
-    ld a, 32
-    ldh [GB_SCANLINE_TRIGGER], a
+    ; Set parallax data pointers
+    call resetScrollLayer
 
     ; Game logic
     call updateTimer

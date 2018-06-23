@@ -42,6 +42,58 @@ gfx_gecko_thinking0001:
     incbin "gfx/bin/gecko-thinking0001.png.bin"
 gfx_end:
 
+mappings_start:
+; Format: Y, X, Tile, Metadata
+arcticfox_metadata_right EQU %10000
+arcticfox_metadata_left EQU %110000
+
+mappings_arcticfox_standing_right:
+    DB 4 ; length
+    DB arcticfox_standing_tile+0, -16,  -8, arcticfox_metadata_right ; Top-left
+    DB arcticfox_standing_tile+1,   0,  -8, arcticfox_metadata_right ; Bottom-left
+    DB arcticfox_standing_tile+2, -16,   0, arcticfox_metadata_right ; Top-right
+    DB arcticfox_standing_tile+3,   0,   0, arcticfox_metadata_right ; Bottom-right
+
+mappings_arcticfox_standing_left:
+    DB 4 ; length
+    DB arcticfox_standing_tile+0,  16,   0, arcticfox_metadata_left ; Top-right
+    DB arcticfox_standing_tile+1,   0,   0, arcticfox_metadata_left ; Bottom-right
+    DB arcticfox_standing_tile+2,  16,  -8, arcticfox_metadata_left ; Top-left
+    DB arcticfox_standing_tile+3,   0,  -8, arcticfox_metadata_left ; Bottom-left
+
+mappings_arcticfox_tail_right_1
+    DB arcticfox_tail_tile+0,     -16, -32, arcticfox_metadata_right  ; Tail left
+    DB arcticfox_tail_tile+1,     -16, -16, arcticfox_metadata_right ; Tail right
+
+mappings_arcticfox_tail_right_2
+    DB arcticfox_tail_tile+2,     -16, -32, arcticfox_metadata_right  ; Tail left
+    DB arcticfox_tail_tile+3,     -16, -16, arcticfox_metadata_right ; Tail right
+
+mappings_arcticfox_tail_right_3
+    DB arcticfox_tail_tile+4,     -16, -32, arcticfox_metadata_right  ; Tail left
+    DB arcticfox_tail_tile+5,     -16, -16, arcticfox_metadata_right ; Tail right
+
+mappings_arcticfox_tail_right_4
+    DB arcticfox_tail_tile+6,     -16, -32, arcticfox_metadata_right  ; Tail left
+    DB arcticfox_tail_tile+7,     -16, -16, arcticfox_metadata_right ; Tail right
+
+mappings_arcticfox_tail_left_1
+    DB arcticfox_tail_tile+0,      16,  16, arcticfox_metadata_left  ; Tail right
+    DB arcticfox_tail_tile+1,      16,   8, arcticfox_metadata_left ; Tail left
+
+mappings_arcticfox_tail_left_2
+    DB arcticfox_tail_tile+2,      16,  16, arcticfox_metadata_left  ; Tail right
+    DB arcticfox_tail_tile+3,      16,   8, arcticfox_metadata_left ; Tail left
+
+mappings_arcticfox_tail_left_3
+    DB arcticfox_tail_tile+4,      16,  16, arcticfox_metadata_left  ; Tail right
+    DB arcticfox_tail_tile+5,      16,   8, arcticfox_metadata_left ; Tail left
+
+mappings_arcticfox_tail_left_4
+    DB arcticfox_tail_tile+6,      16,  16, arcticfox_metadata_left  ; Tail right
+    DB arcticfox_tail_tile+7,      16,   8, arcticfox_metadata_left ; Tail left
+
+mappings_end:
 ; BACKGROUNDS
 bg_start:
 
@@ -63,7 +115,7 @@ bg_grass:
     dw `21212121
     dw `12121212
     dw `12211222
-bg_grass_top:
+bg_sky_grass:
     dw `00000000
     dw `00000000
     dw `00000000
@@ -73,23 +125,53 @@ bg_grass_top:
     dw `02021212
     dw `12211222
 bg_dirt:
+    dw `00110011
     dw `00000000
-    dw `10101010
+    dw `01100110
     dw `00000000
-    dw `10101010
+    dw `11001100
     dw `00000000
-    dw `01010101
+    dw `10011001
     dw `00000000
-    dw `01010101
+
+bg_dirt_grass:
+    dw `00110011
+    dw `00000000
+    dw `01100110
+    dw `20020000
+    dw `21021100
+    dw `20202020
+    dw `02021212
+    dw `12211222
+bg_grass_dirt:
+    dw `02202002
+    dw `02000000
+    dw `01100110
+    dw `00000000
+    dw `11001100
+    dw `00000000
+    dw `10011001
+    dw `00000000
 bg_end:
 
 bgmap_start:
-    db 0,0,0,0,2,1,1,1,1,1,3,3,3,3,1,1,1,1
+    db 0,0,0,0,2,1,1,1,1,5,3,3,3,3,4,1,1,1
 bgmap_end:
 
 font:
     incbin "gfx/bin/8x8font.png.bin"
     incbin "gfx/bin/8x8numbers.png.bin"
 font_end:
+
+scrolltables:
+
+scrolltables_standard:
+scrolltables_standard_lines:
+    DB 35, 73, 114, 0
+scrolltables_standard_xoff:
+    ; from RAM
+scrolltables_standard_end:
+
+scrolltables_end:
 
 SECTION "ENDGFX",ROM0

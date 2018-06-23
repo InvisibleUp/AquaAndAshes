@@ -31,180 +31,25 @@ GetScreenX:
 	pop hl
 ret
 
+; de = mapping offset
+; b = object x
+DrawSprite:
+push hl
+push de
+pop hl
+
+	; A, D and E are free now
+	ld a, [hl+]
+	ld e, a ; E = number of sprites
+
+pop hl
+ret
+
 ; c = src
 ; hl = dest
 RenderFox:
-; Render tail object ( 2 sprites )
+	; Render body
 
-	;; Sprite 1
-	; e = attributes
-	ld a, [$ff00+c]
-	ld e, a
-
-	; Y
-	inc c
-	ld a, [$ff00+c] ; raw Y is real Y
-	ld [hl+], a
-
-	; X
-	inc c
-	ld a, [$ff00+c] ; raw X is real X
-	ld b, a
-	; add or subtract 8 depending on direction
-	; This is because coordinate is relative to body. not tail
-	ld a, e
-	and a, %10000 ; Direction
-	ld d, a
-	;sra d
-	or a, d
-	sub a, 8 ; Make 8 or -8
-	add a, b
-
-	ld [hl+], a 
-
-	; Tile Index
-	inc c
-	ld a, [$ff00+c]
-	and a, %11
-	sla a
-	sla a
-	add a, arcticfox_tail_tile
-	ld [hl+], a
-
-	; Tile attributes
-	ld a, e
-	and a, %10000 ; Direction
-	sla a ; Shift to direction flag pos
-	or a, %10000 ; OBJ2 palette
-	ld [hl+], a
-
-	;; Sprite 2
-	; Set src to last sprite
-	ld d, h
-	ld e, l
-	dec de
-	dec de
-	dec de
-	dec de
-
-	; Rewind object pointer
-	dec c
-	dec c
-	dec c
-
-	; Y
-	ld a, [de]
-	ld [hl+], a
-	inc de
-	; X, add or subtract 8 depending on direction
-	ld a, [de]
-	ld b, a
-	ld a, [$ff00+c]
-	and a, %10000 ; Direction
-	cpl ; Negate if left, noop if right
-	inc a ; Adjust for cpl
-	add a, 8
-	add a, b
-	ld [hl+], a
-	inc de
-	; Tile (next tail tile)
-	ld a, [de]
-	inc a
-	inc a
-	ld [hl+], a
-	inc de
-	; Attributes (same)
-	ld a, [de]
-	ld [hl+], a
-	inc de
-
-; Render body ( 4 sprites )
-	;; Top-left
-	; Y
-	ld a, [de]
-	sub a, 16
-	ld [hl+], a
-	inc de
-	; X, move left one to fight layering issues
-	ld a, [de]
-	dec a
-	ld [hl+], a
-	inc de
-	; Tile (from start)
-	ld a, arcticfox_standing_tile
-	ld [hl+], a
-	inc de
-	; Attributes (same)
-	ld a, [de]
-	ld [hl+], a
-	inc de
-
-	;; Bottom-right
-	; Y (+16)
-	ld a, [de]
-	add a, 16
-	ld [hl+], a
-	inc de
-	; X (same)
-	ld a, [de]
-	ld [hl+], a
-	inc de
-	; Tile (plus 2)
-	ld a, [de]
-	add a, 2
-	ld [hl+], a
-	inc de
-	; Attributes (same)
-	ld a, [de]
-	ld [hl+], a
-	inc de
-
-	;; Top-right
-	; Y (-16)
-	ld a, [de]
-	sub a, 16
-	ld [hl+], a
-	inc de
-	; X, add or subtract 8 depending on direction
-	ld a, [de]
-	ld b, a
-	ld a, [$ff00+c]
-	and a, %10000 ; Direction
-	cpl ; Negate if left, noop if right
-	inc a ; Adjust for xor
-	add a, 8
-	add a, b
-	ld [hl+], a
-	inc de
-	; Tile (plus 2)
-	ld a, [de]
-	add a, 2
-	ld [hl+], a
-	inc de
-	; Attributes (same)
-	ld a, [de]
-	ld [hl+], a
-	inc de
-
-	;; Bottom-right
-	; Y (+16)
-	ld a, [de]
-	add a, 16
-	ld [hl+], a
-	inc de
-	; X (same)
-	ld a, [de]
-	ld [hl+], a
-	inc de
-	; Tile (plus 2)
-	ld a, [de]
-	add a, 2
-	ld [hl+], a
-	inc de
-	; Attributes (same)
-	ld a, [de]
-	ld [hl+], a
-	inc de
 ret
 
 ; c = src

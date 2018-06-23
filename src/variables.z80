@@ -41,7 +41,7 @@ charRenderSizeOf     RB 0
 
 FieldHeight EQU $60
 
-SECTION "WRAM",WRAM0[$C000]
+SECTION "Variables",WRAM0[$C000]
 WramStart:
 GlobalTimer:
 	DS 1
@@ -50,18 +50,24 @@ WaitingForVBlank: ; 0 = waiting, 1 = busy
 
 FieldX:
 	DS 2
-ParallaxLayer1: ; Above path
+ParallaxLayer1: ; Grass -> dirt
 	DS 1
-ParallaxLayer2: ; Path
+ParallaxLayer2: ; Dirt -> grass
 	DS 1
-ParallaxLayer3: ; Below path
+ParallaxLayer3: ; Grass -> bottom
 	DS 1
 
-DS 1 ; filler
+StatJmpLoc: ; Pointer to routine to use
+	DS 2
+StatNextLineOff: ; Pointer to table
+	DS 2
+StatXOff: ; Pointer to table
+	DS 2
 
+SECTION "ObjectTable",WRAM0[$C100]
 ; Define 8 objects
 charStruct:
-DS charSizeOf * 8
+DS charSizeOf * 6
 charStruct_end:
 
 SECTION "SpriteTable",WRAMX[$DF00]
@@ -70,14 +76,13 @@ DS $9F
 SpriteTable_End:
 WramEnd:
 
-SECTION "HRAM",HRAM
+SECTION "HiRAM",HRAM
 HramStart:
+
 ; 8 renderable objects
 charRenderStruct:
-DS charRenderSizeOf  * 8
+DS charRenderSizeOf  * 6
 charRenderStruct_end:
 
-StatJmpLoc:
-DW
 HramEnd:
 

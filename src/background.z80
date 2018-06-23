@@ -53,56 +53,74 @@ decParallax:
 	ret	
 
 ; LCD STAT interupt routine
-scrollLayer1:
+scrollLayer:
+	; Set next HBLANK interrupt
+	ld hl, StatNextLineOff
+
+	; Load table offset into DE
+	ld a, [hl+] 
+	ld d, a
+	ld a, [hl+] ; HL points to StatXOff
+	ld e, a
+
+	; Load value
+	ld a, [de]
+	ldh [GB_SCANLINE_TRIGGER], a
+
+	; Store incremented pointer
+	inc de
+	ld a, d
+	ld [StatNextLineOff], a
+	ld a, e
+	ld [StatNextLineOff+1], a
+
 	; Set scroll position
-	ld a, [ParallaxLayer1]
+	ld a, [hl+] 
+	ld d, a
+	ld a, [hl+]
+	ld e, a
+
+	ld a, [de]
 	ldh [GB_SCROLL_X], a
 
-	; Set next HBLANK interrupt
-	ld hl, scrollLayer2 
-	ld a, h
-	ldh [StatJmpLoc], a
-	ld a, l
-	ldh [StatJmpLoc+1], a
-	ld a, 80
-	ldh [GB_SCANLINE_TRIGGER], a
+	inc de
+	ld a, d
+	ld [StatXOff], a
+	ld a, e
+	ld [StatXOff+1], a
 
 	pop hl
 	pop af
 	reti
 
-scrollLayer2:
-	; Set scroll position
-	ld a, [ParallaxLayer2]
-	ldh [GB_SCROLL_X], a
-
-	; Set next HBLANK interrupt
-	ld hl, scrollLayer2 
-	ld a, h
-	ldh [StatJmpLoc], a
-	ld a, l
-	ldh [StatJmpLoc+1], a
-	ld a, 112
-	ldh [GB_SCANLINE_TRIGGER], a
-
-	pop hl
-	pop af
-	reti
-
-scrollLayer3:
-	; Set scroll position
-	ld a, [ParallaxLayer3]
-	ldh [GB_SCROLL_X], a
-
-	; Disable HBlank
-	;ld hl, lcdc_dummy
-	;ld a, h
-	;ldh [StatJmpLoc], a
-	;ld a, l
-	;ldh [StatJmpLoc+1], a
+resetScrollLayer:
+	; Reset scroll register
+;	ld hl, ParallaxLayer1
+;	ld a, [hl]
 	xor a
+	ldh [GB_SCROLL_X], a
+
+initScrollLayer:
+
+	; Next line table
+	ld hl, scrolltables_standard_lines
+
+	; Reset LYC register
+	ld a, [hl]
 	ldh [GB_SCANLINE_TRIGGER], a
 
-	pop hl
-	pop af
-	reti
+	; Increment LYC pointer to next entry
+	inc hl
+	ld a, h
+	ld [StatNextLineOff], a
+	ld a, l
+	ld [StatNextLineOff+1], a
+
+	; X offsets
+	ld hl, ParallaxLayer1
+	ld a, h
+	ld [StatXOff], a
+	ld a, l
+	ld [StatXOff+1], a
+
+ret
