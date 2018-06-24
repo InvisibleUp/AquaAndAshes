@@ -103,6 +103,7 @@ PrepareObject:
 	jr nz, .skipRightAdjust
 
 	ld a, [bc]
+	sla a
 	add a, c
 	ld c, a
 	jr nc, .nocarry_2

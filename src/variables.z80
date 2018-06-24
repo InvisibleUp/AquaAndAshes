@@ -22,7 +22,7 @@ charDx         RB 1 ; Horizontal speed of object, signed
 charDy         RB 1 ; Vertical speed of object, signed
 charSizeOf     RB 0 ; Size of struct
 
-FieldHeight EQU $50
+FieldHeight EQU $60
 
 SECTION "Variables",WRAM0[$C000]
 WramStart:
