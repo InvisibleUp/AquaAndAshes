@@ -49,51 +49,87 @@ arcticfox_metadata_left EQU %110000
 
 mappings_arcticfox_standing_right:
     DB 4 ; length
-    DB arcticfox_standing_tile+0, -16,  -8, arcticfox_metadata_right ; Top-left
-    DB arcticfox_standing_tile+1,   0,  -8, arcticfox_metadata_right ; Bottom-left
-    DB arcticfox_standing_tile+2, -16,   0, arcticfox_metadata_right ; Top-right
-    DB arcticfox_standing_tile+3,   0,   0, arcticfox_metadata_right ; Bottom-right
+    DB -16,  -8, arcticfox_standing_tile+0, arcticfox_metadata_right ; Top-left
+    DB   0,  -8, arcticfox_standing_tile+2, arcticfox_metadata_right ; Bottom-left
+    DB -16,   0, arcticfox_standing_tile+4, arcticfox_metadata_right ; Top-right
+    DB   0,   0, arcticfox_standing_tile+6, arcticfox_metadata_right ; Bottom-right
 
 mappings_arcticfox_standing_left:
     DB 4 ; length
-    DB arcticfox_standing_tile+0,  16,   0, arcticfox_metadata_left ; Top-right
-    DB arcticfox_standing_tile+1,   0,   0, arcticfox_metadata_left ; Bottom-right
-    DB arcticfox_standing_tile+2,  16,  -8, arcticfox_metadata_left ; Top-left
-    DB arcticfox_standing_tile+3,   0,  -8, arcticfox_metadata_left ; Bottom-left
-
+    DB   0,   0, arcticfox_standing_tile+0, arcticfox_metadata_left ; Top-right
+    DB  16,   0, arcticfox_standing_tile+2, arcticfox_metadata_left ; Bottom-right
+    DB   0,  -8, arcticfox_standing_tile+4, arcticfox_metadata_left ; Top-left
+    DB  16,  -8, arcticfox_standing_tile+6, arcticfox_metadata_left ; Bottom-left
+       
 mappings_arcticfox_tail_right_1
-    DB arcticfox_tail_tile+0,     -16, -32, arcticfox_metadata_right  ; Tail left
-    DB arcticfox_tail_tile+1,     -16, -16, arcticfox_metadata_right ; Tail right
-
+    DB 2
+    DB -16, -32, arcticfox_tail_tile+0,     arcticfox_metadata_right  ; Tail left
+    DB -16, -16, arcticfox_tail_tile+2,     arcticfox_metadata_right ; Tail right
+       
 mappings_arcticfox_tail_right_2
-    DB arcticfox_tail_tile+2,     -16, -32, arcticfox_metadata_right  ; Tail left
-    DB arcticfox_tail_tile+3,     -16, -16, arcticfox_metadata_right ; Tail right
-
+    DB 2
+    DB -16, -32, arcticfox_tail_tile+4,     arcticfox_metadata_right  ; Tail left
+    DB -16, -16, arcticfox_tail_tile+6,     arcticfox_metadata_right ; Tail right
+       
 mappings_arcticfox_tail_right_3
-    DB arcticfox_tail_tile+4,     -16, -32, arcticfox_metadata_right  ; Tail left
-    DB arcticfox_tail_tile+5,     -16, -16, arcticfox_metadata_right ; Tail right
-
+    DB 2
+    DB -16, -32, arcticfox_tail_tile+8,     arcticfox_metadata_right  ; Tail left
+    DB -16, -16, arcticfox_tail_tile+10,    arcticfox_metadata_right ; Tail right
+       
 mappings_arcticfox_tail_right_4
-    DB arcticfox_tail_tile+6,     -16, -32, arcticfox_metadata_right  ; Tail left
-    DB arcticfox_tail_tile+7,     -16, -16, arcticfox_metadata_right ; Tail right
-
+    DB 2
+    DB -16, -32, arcticfox_tail_tile+12,    arcticfox_metadata_right  ; Tail left
+    DB -16, -16, arcticfox_tail_tile+14,    arcticfox_metadata_right ; Tail right
+       
 mappings_arcticfox_tail_left_1
-    DB arcticfox_tail_tile+0,      16,  16, arcticfox_metadata_left  ; Tail right
-    DB arcticfox_tail_tile+1,      16,   8, arcticfox_metadata_left ; Tail left
-
+    DB 2
+    DB  16,   8, arcticfox_tail_tile+0,     arcticfox_metadata_left  ; Tail right
+    DB  16,   0, arcticfox_tail_tile+2,     arcticfox_metadata_left ; Tail left
+       
 mappings_arcticfox_tail_left_2
-    DB arcticfox_tail_tile+2,      16,  16, arcticfox_metadata_left  ; Tail right
-    DB arcticfox_tail_tile+3,      16,   8, arcticfox_metadata_left ; Tail left
-
+    DB 2
+    DB  16,   8, arcticfox_tail_tile+4,     arcticfox_metadata_left  ; Tail right
+    DB  16,   0, arcticfox_tail_tile+6,     arcticfox_metadata_left ; Tail left
+       
 mappings_arcticfox_tail_left_3
-    DB arcticfox_tail_tile+4,      16,  16, arcticfox_metadata_left  ; Tail right
-    DB arcticfox_tail_tile+5,      16,   8, arcticfox_metadata_left ; Tail left
-
+    DB 2
+    DB  16,   8, arcticfox_tail_tile+8,     arcticfox_metadata_left  ; Tail right
+    DB  16,   0, arcticfox_tail_tile+10,    arcticfox_metadata_left ; Tail left
+       
 mappings_arcticfox_tail_left_4
-    DB arcticfox_tail_tile+6,      16,  16, arcticfox_metadata_left  ; Tail right
-    DB arcticfox_tail_tile+7,      16,   8, arcticfox_metadata_left ; Tail left
+    DB 2
+    DB  16,   8, arcticfox_tail_tile+12,    arcticfox_metadata_left  ; Tail right
+    DB  16,   0, arcticfox_tail_tile+14,    arcticfox_metadata_left ; Tail left
 
 mappings_end:
+
+animations_start:
+
+animations_arcticfox_standing:
+    DB 2 ; Number of sprites
+    DB 4 ; Number of frames
+    DB 0 ; Loop Action (bit7=0: go to frame bit0-6; bit7=1; go to anim bit0-6 frame 0)
+    DB 8 ; sprites * frames
+    ; Left
+    DW mappings_arcticfox_standing_left, mappings_arcticfox_standing_left
+    DW mappings_arcticfox_standing_left, mappings_arcticfox_standing_left
+    
+    DW mappings_arcticfox_tail_left_1, mappings_arcticfox_tail_left_2
+    DW mappings_arcticfox_tail_left_3, mappings_arcticfox_tail_left_4
+
+    ; Right
+    DW mappings_arcticfox_standing_right, mappings_arcticfox_standing_right
+    DW mappings_arcticfox_standing_right, mappings_arcticfox_standing_right    
+    
+    DW mappings_arcticfox_tail_right_1, mappings_arcticfox_tail_right_2
+    DW mappings_arcticfox_tail_right_3, mappings_arcticfox_tail_right_4
+
+animations_end:
+
+animations_pointers_start:
+    DW animations_arcticfox_standing
+animations_pointers_end:
+
 ; BACKGROUNDS
 bg_start:
 

@@ -3,16 +3,19 @@
 ; uses D register for temp storage
 ; uses E register for temp storage
 GetScreenX:
+	push de
 	push hl
 	; Load FieldX into hl
 	ld hl, FieldX
 	ld a, [hl+]
-	ld d, a
-	ld a, [hl+]
-	ld h, d
-	ld l, a
+	ld l, [hl]
+	ld h, a
 
-	; Load ObjX into de
+	; Divide by 2 so that it lines up with path scrolling
+	srl h ; Store bit 0 into carry
+	rr  l ; Load bit 7 from carry
+
+	; Load ObjX into de from stack
 	pop bc
 	push bc
 	ld a, [bc]
@@ -23,241 +26,203 @@ GetScreenX:
 	ld e, a
 
 	; ObjX - FieldX (as -FieldX + ObjX)
-	NegateHL
+	;NegateHL
 	add hl, de
 
 	; Get low byte and exit
 	ld a, l
 	pop hl
+	pop de
 ret
 
-; de = mapping offset
-; b = object x
-DrawSprite:
-push hl
-push de
-pop hl
+; Replaces prepare and the various render routines
+; HiRAM has a lot of variables, but no inputs
+; de = output sprite location [input]
+; hl = input object location [input]
+PrepareObject:
+	; Stash output so we have some more registers
+	push de
 
-	; A, D and E are free now
+	; Load attributes into HiRAM
+	ld a, [hl+] ; @ charY
+	ldh [SpriteAttribs], a
+
+	; Load Y into HiRAM
+	ld a, [hl+] ; @ charX
+	ldh [SpriteY], a
+
+	; Calculate X and load into HiRAM
+	call GetScreenX ; @ charAnim
+	ldh [SpriteX], a
+
+	; Get the animation number
+	ld a, [hl+] ; @ charAnimFrame
+	; Multiply by 2 because words
+	sla a
+
+	; Get animation frame and load into HiRAM
 	ld a, [hl+]
-	ld e, a ; E = number of sprites
+	sla a
+	ldh [SpriteFrame], a
 
-pop hl
-ret
+	; Stash HL
+	push hl
 
-; c = src
-; hl = dest
-RenderFox:
-	; Render body
-
-ret
-
-; c = src
-; hl = dest
-RenderGecko:
-	;; Top-left
-	; Store attributes
-	ld a, [$ff00+c]
+	; Look up the animation offset
+	ld d, HIGH(animations_pointers_start)
+	add a, LOW(animations_pointers_start)
+	jr nc, .nocarry_1
+	inc d
+.nocarry_1
 	ld e, a
-	inc c
-	; Y
-	ld a, [$ff00+c]
-	sub a, 16
-	ld [hl+], a
-	inc c
-	; X
-	ld a, [$ff00+c]
 
-	ld b, a
-	; add or subtract 8 depending on direction
-	ld a, e
-	and a, %10000 ; Direction
-	ld d, a
-	or a, d
-	sub a, 8 ; Make 8 or -8
-	add a, b
-
-	ld [hl+], a
-	inc c
-	; Tile (from start)
-	ld a, gecko_standing_tile
-	ld [hl+], a
-	; Attributes
-	ld a, e
-	and a, %10000 ; Direction
-	sla a ; Shift to direction flag pos
-	ld [hl+], a
-
-	; Set src to last sprite
-	ld d, h
-	ld e, l
-	dec de
-	dec de
-	dec de
-	dec de
-
-	; Rewind object pointer
-	dec c
-	dec c
-	dec c
-
-	;; Bottom-right
-	; Y (+16)
+	; Get pointer to animation table into bc
+	; de is now free
 	ld a, [de]
-	add a, 16
-	ld [hl+], a
-	inc de
-	; X (same)
-	ld a, [de]
-	ld [hl+], a
-	inc de
-	; Tile (plus 2)
-	ld a, [de]
-	add a, 2
-	ld [hl+], a
-	inc de
-	; Attributes (same)
-	ld a, [de]
-	ld [hl+], a
-	inc de
-
-	;; Top-right
-	; Y (-16)
-	ld a, [de]
-	sub a, 16
-	ld [hl+], a
-	inc de
-	; X, add or subtract 8 depending on direction
-	ld a, [de]
-	ld b, a
-	ld a, [$ff00+c]
-	and a, %10000 ; Direction
-	cpl ; Negate if left, noop if right
-	inc a ; Adjust for cpl
-	add a, 8
-	add a, b
-	ld [hl+], a
-	inc de
-	; Tile (plus 2)
-	ld a, [de]
-	add a, 2
-	ld [hl+], a
-	inc de
-	; Attributes (same)
-	ld a, [de]
-	ld [hl+], a
-	inc de
-
-	;; Bottom-right
-	; Y (+16)
-	ld a, [de]
-	add a, 16
-	ld [hl+], a
-	inc de
-	; X (same)
-	ld a, [de]
-	ld [hl+], a
-	inc de
-	; Tile (plus 2)
-	ld a, [de]
-	add a, 2
-	ld [hl+], a
-	inc de
-	; Attributes (same)
-	ld a, [de]
-	ld [hl+], a
-	inc de
-ret
-
-RenderBucket:
-ret
-
-RenderTorch:
-ret
-
-; No arguments
-; Uses A, C, HL registers
-; Converts everything in object table to something usable by DMA
-; c = OBJ HiRAM offset
-; hl = Sprite Table offset
-BakeSprites:
-	ld c, (charRenderStruct_end - charRenderStruct) / charSizeOf
-	ld hl, SpriteTable
-	ld c, $80
-
-.Loop
-	; Test if sprite is active
-	ld a, [$ff00+c]
-	;bit 7, [hl]
-	bit 7, a
-	jr z, .CheckDone
-
-	; Test for team
-	bit 6, a
-	jr z, .Gecko
-
-.ArcticFox
-	; Test for object type
-	bit 5, a
-	call z, RenderFox
-	call nz, RenderBucket
-	jr .CheckDone
-.Gecko
-	bit 5, a
-	call z, RenderGecko
-	call nz, RenderTorch
-
-.CheckDone
-	ld a, c
-	add a, charRenderSizeOf
 	ld c, a
-	cp a, ($80 + charRenderStruct_end - charRenderStruct)
-	jr nz, .Loop
-
-ret
-
-PrepareSprites:
-	ld hl, charStruct
-	ld c, $80
-.loop:
-	; Info bitfield
-	ld a, [hl+]
-	ld [$ff00+c], a
-	inc c
-
-	; Y
-	ld a, [hl+]
-	ld [$ff00+c], a
-	inc c
-
-	; X
-	;call GetScreenX
-	inc hl
-	ld a, [hl+]
+	inc de
+	ld a, [de]
 	ld b, a
-	ld a, [FieldX+1]
-	sub a, b
-	ld [$ff00+c], a 
-	inc c
-	inc hl ; Dx
-	inc hl ; Dy
-	inc hl ; Speed
-	;inc hl ; Timer
 
-	; Animation timer
+	; Get number of sprites and number of frames
+	ld a, [bc]
+	inc bc
+	inc a ; For loop later
+	ldh [SpriteCount], a ; Stash
+
+	ld a, [bc]
+	inc bc
+	sla a
+	ldh [SpriteSize], a
+
+	inc bc ; Skip loop point
+
+	; Determine if we need to skip to right-facing mappings
+	ld a, [SpriteAttribs]
+	and a, %10000
+	jr nz, .skipRightAdjust
+
+	ld a, [bc]
+	add a, c
+	ld c, a
+	jr nc, .nocarry_2
+	inc b
+.nocarry_2:
+.skipRightAdjust:
+	inc bc ; Get to start of mapping list
+
+	ld hl, sp+2 ; HL = OAM buffer
 	ld a, [hl+]
-	ld [$ff00+c], a
-	inc c
+	ld d, a
+	ld a, [hl]
+	ld h, a
+	ld l, d
+.loop:
+	; Out of sprites?
+	ldh a, [SpriteCount]
+	dec a
+	jr z, .endloop
+	ldh [SpriteCount], a
 
-	ld de, charStruct_end
-	ld a, e
-	sub a, l
-	jr nz, .loop
-	ld a, d
-	sub a, h
-	jr nz, .loop
+	; de = bc (mapping list) + sprite no.
+	sla a
+	add a, c
+	ld d, b
+	ld e, a
+	jr nc, .nocarry_3
+	inc d
+.nocarry_3:
+	push bc ; Don't need this right now, do need registers
+
+	; Read mapping data for this frame
+	ld a, [de]
+	ld c, a
+	inc de
+	ld a, [de]
+	ld b, a
+	; de free, bc = mapping offset
+
+	; Get number of sub-sprites
+	ld a, [bc]
+	ld d, a ; D is loop counter
+	inc bc
+
+.loop_subsprite:
+	; Okay now we can finally write our output to OAM
+	; Using E as temp
+
+	ld a, [bc] ; Y (adjust with stashed)
+	ld e, a
+	ldh a, [SpriteY]
+	add a, e
+	ld [hl+], a
+	inc bc
+
+	ld a, [bc] ; X (adjust with stashed)
+	ld e, a
+	ldh a, [SpriteX]
+	add a, e
+	ld [hl+], a
+	inc bc
+
+	ld a, [bc] ; Tile
+	ld [hl+], a
+	inc bc
+
+	ld a, [bc] ; Metadata
+	ld [hl+], a
+	inc bc
+
+	dec d
+	jr nz, .loop_subsprite
+.endloop_subsprite:
+
+	; And now get the next sprite
+	pop bc
+	ldh a, [SpriteSize]
+	add a, c
+	ld c, a
+	jr nc, .loop
+	inc b
+	jr .loop
+
+.endloop:
+
+	; Get new OAM output and unwind stack
+	ld a, h
+	ld d, a
+	ld a, l
+	ld e, a
+	pop hl ; Object input
+	pop bc ; OAM output
 
 ret
+
+; Clobbers literally everything
+; de = output sprite location
+; hl = input object location
+PrepareAllObjects:
+	ld d, HIGH(SpriteTable)
+	ld e, LOW(SpriteTable)
+	ld hl, charStruct
+	
+	; We're going to need to keep bc on the stack...
+	ldh a, [ActiveObjectsCount]
+	ld b, a
+	ldh a, [ActiveObjectsBitfield]
+	ld c, a
+.loop:
+	rl c
+	jr nc, .checkdone
+	dec c
+
+	push bc
+	call PrepareObject
+	pop bc
+
+.checkdone
+	ret z
+	jr .loop
 
 ; Don't call directly!
 SpriteDMA:

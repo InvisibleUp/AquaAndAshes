@@ -1,0 +1,42 @@
+; Create bitfield in a containing a list of active objects.
+; This is clever because you can rr x; jr nc to skip easily.
+; We're storing the result in HiRAM for easy access.
+; Also includes number of active objects as it's own variable.
+
+GenerateActiveObjectsBitfield:
+	xor a
+	ld b, a ; result
+	ld c, a ; count
+
+	ld d, a ; For incrementing HL
+	ld e, charSizeOf
+
+	ld hl, charStruct ; Initial pointer
+
+REPT 7
+	ld a, [hl] ; Get attributes
+	add hl, de ; Increment HL to next object
+	rla ; Set carry to active flag
+	jr nc, .notactive\@ ; Skip if not active
+	inc b ; Mark as active
+	inc c ; Increment counter
+.notactive\@:
+	sla b ; Move b to the left
+ENDR
+
+; And one last time excluding the shift
+	ld a, [hl] ; Get attributes
+	add hl, de ; Increment HL to next object
+	rla ; Set carry to active flag
+	jr nc, .done ; Skip if not active
+	inc b
+	inc c
+.done:
+
+	; Save result
+	ld a, b
+	ldh [ActiveObjectsBitfield], a
+	ld a, c
+	ldh [ActiveObjectsCount], a
+
+ret

@@ -13,9 +13,10 @@ include "src/math.z80"
 include "src/gfxinclude.z80"
 include "src/sprites.z80"
 include "src/background.z80"
+include "src/objects.z80"
 
 SECTION "main", ROM0
-
+; Interrupt handlers
 vblank:
     ; Jumping here clears vblank flag automatically
     push af
@@ -23,13 +24,6 @@ vblank:
     jr nz, .return ; Lag!
 
     call $FF80 ; Update sprites
-
-    ; Scroll
-    call decParallax
-
-    ; Reset X scroll to 0
-    xor a
-    ld [GB_SCROLL_X], a
     
     ; Finish
     ld a, 1
@@ -43,38 +37,39 @@ lcdc:
     push af
     push hl
 
-    ld a, [StatJmpLoc]
+    ld hl, StatJmpLoc
+    ld a, [hl+]
+    ld l, [hl]
     ld h, a
-    ld a, [StatJmpLoc+1]
-    ld l, a
     jp hl ; This better be valid...
 
 updateTimer:
     ld hl, GlobalTimer
     inc [hl]
     ld b, [hl] ; B = Global Timer
-    ld hl, charStruct
+    ld hl, charStruct + charAnimSpeed
+
+    ldh a, [ActiveObjectsBitfield]
+    ld e, a
+    ldh a, [ActiveObjectsCount]
+    ld c, a
+
+    or a ; Are there any objects at all?
+    ret z ; If not, just quit
 
 .objloop:
-    ld a, [hl]
-    ld c, a ; C = Attributes
-
-    push bc
-    ld bc, charAnimSpeed
-    add hl, bc
-    pop bc
-
-    bit 7, c
-    jr z, .objloop_checkdone
+    rl e ; Is object visible?
+    jr nc, .objloop_checkdone
+    dec c ; Reduce active objects count
 
     ld a, [hl] ; A = timer speed
-    sub a, 0
-    jr z, .updateobjtimer
+    or a, a
+    jr z, .updateobjtimer ; Always update
 
-    ld d, a
-    ld e, b
+    ld d, a ; D = timer speed (# of iterations)
+    ld a, b ; A = global timer
 .shiftloop:
-    srl e
+    rra
     jr nc, .objloop_checkdone ; If all bits are not 1, don't update
     dec d
     jr nz, .shiftloop
@@ -84,20 +79,21 @@ updateTimer:
     ld a, [hl] ; A = timer
     inc a
     ld [hl], a
-    dec hl
 
 .objloop_checkdone:
-    inc hl
-    inc hl
-    ld de, charStruct_end
-    ld a, e
-    cp l
-    jr nz, .objloop
-    ld a, d
-    cp h
+    ; Bump HL up to next object
+    ld a, charSizeOf - (charAnimTimer + 1)
+    add l
+    ld l, a
+    jr nc, .nocarry
+    inc h
+.nocarry:
+
+    ld a, c
+    or a ; Any objects left?
     jr nz, .objloop
 
-    reti
+ret
 
 clearRAM:
    ; Clear RAM and VRAM
@@ -142,6 +138,12 @@ LoadGFX:
 
     ; Clear RAM
     call clearRAM
+
+    ; Copy DMA code to WRAM
+    ld hl, SpriteDMA
+    ld de, $FF80
+    ld bc, SpriteDMA_End - SpriteDMA
+    call memcpy
 
     ; Load graphics
     ld hl, gfx_start
@@ -191,35 +193,31 @@ main:
     ; Set interrupts and timers
     xor a
     ldh [GB_INTERRUPT_FLAG], a
-    ;ld [GB_TIMER_MODULO], a
     ld a, GB_INTERRUPT_VBLANK | GB_INTERRUPT_STAT
     ldh [GB_INTERRUPT_ENABLE], a
-
-    ;ld a, GB_TIMER_CTRL_START | GB_TIMER_CTRL_CLOCK_4096
-    ;ld [GB_TIMER_CTRL], a
 
     ; Set stack to top of WRAM
     ld sp, $DFFE
 
-    ; Init VDP
+    ; Init PPU
     call LoadGFX
 
     ; Init objects
-;    ld hl, charStruct
-;    ld a, %11010000 ; Snowfox, facing left
-;    ld [hl+], a
-;    ld a, FieldHeight ; Y
-;    ld [hl+], a
-;    xor a ; X High
-;    ld [hl+], a
-;    ld a, $80 ; X low
-;    ld [hl+], a
-;    xor a ; Dx, Dy
-;    ld [hl+], a
-;    ld [hl+], a
-;    ld a, 3 ; Animation speed
-;    ld [hl+], a
-;    inc hl
+    ld hl, charStruct
+    ld a, %11010000 ; Snowfox, facing left
+    ld [hl+], a
+    ld a, FieldHeight ; Y
+    ld [hl+], a
+    xor a ; X High
+    ld [hl+], a
+    ld a, $80 ; X low
+    ld [hl+], a
+    xor a ; Dx, Dy
+    ld [hl+], a
+    ld [hl+], a
+    ld a, 3 ; Animation speed
+    ld [hl+], a
+    inc hl
 ;
 ;    ld a, %10000000 ; Gecko, facing right
 ;    ld [hl+], a
@@ -257,34 +255,21 @@ main:
     ldh [GB_LCD_STAT], a 
 
     WaitForVBlank
+    ei
 
 .loop:
     ; Set parallax data pointers
     call resetScrollLayer
 
     ; Game logic
+    call incFieldX
+
+    ; Update timers and set active objects bitfield
+    call GenerateActiveObjectsBitfield
     call updateTimer
 
-    ld hl, FieldX
-    ld a, [hl+]
-    ld d, a
-    ld a, [hl]
-    ld e, a
-    inc de
-    ld a, e
-    ld [hl-], a
-    ld a, d
-    ld [hl], a
-
     ; Prepare graphics data
-    call PrepareSprites
-    call BakeSprites
-
-    ; Copy DMA code to WRAM
-    ld hl, SpriteDMA
-    ld de, $FF80
-    ld bc, SpriteDMA_End - SpriteDMA
-    call memcpy
+    call PrepareAllObjects
 
     ; Wait for VBlank
     xor a
@@ -292,7 +277,7 @@ main:
 .VBlankWait
     halt
     ld a, [WaitingForVBlank]
-    sub a, 0
+    or a
     jr z, .VBlankWait
 
     jr .loop

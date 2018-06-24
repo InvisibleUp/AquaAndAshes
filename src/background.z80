@@ -1,6 +1,17 @@
 ; Update parallax background timers
 ; Run once per increment of ScrollX
-incParallax:
+incFieldX:
+	ld hl, FieldX
+	ld a, [hl+]
+	ld d, a
+	ld a, [hl]
+	ld e, a
+	dec de
+	ld a, e
+	ld [hl-], a
+	ld a, d
+	ld [hl], a
+
 	ld a, [GlobalTimer]
 	ld b, a
 	ld hl, ParallaxLayer1
@@ -14,20 +25,31 @@ incParallax:
 	inc hl
 	ld b, a
 	call Modulo3
-	sub a, 0
+	or a
 	jr nz, .Layer3
 	inc [hl]
 .Layer3:
 	inc hl
-	bit 0, a
-	jr nz, .return
+	rra
+	jr c, .return
 	inc [hl]
 .return:
 	ret
 
 ; Update parallax background timers
 ; Run once per decrement of ScrollX
-decParallax:
+decFieldX:
+	ld hl, FieldX
+	ld a, [hl+]
+	ld d, a
+	ld a, [hl]
+	ld e, a
+	inc de
+	ld a, e
+	ld [hl-], a
+	ld a, d
+	ld [hl], a
+
 	ld a, [GlobalTimer]
 	ld b, a
 	ld hl, ParallaxLayer1
@@ -41,13 +63,13 @@ decParallax:
 	inc hl
 	ld b, a
 	call Modulo3
-	sub a, 0
+	or a
 	jr nz, .Layer3
 	dec [hl]
 .Layer3:
 	inc hl
-	bit 0, a
-	jr nz, .return
+	rra
+	jr c, .return
 	dec [hl]
 .return:
 	ret	
@@ -93,6 +115,7 @@ scrollLayer:
 	pop af
 	reti
 
+; Call this after every VBlank
 resetScrollLayer:
 	; Reset scroll register
 ;	ld hl, ParallaxLayer1

@@ -12,34 +12,17 @@ RSRESET
 	; 4 = tackled
 	; 5 - 16 = reserved
 charInfo       RB 1
-charY          RB 1
-charX          RW 1
-charDx         RB 1
-charDy         RB 1
-charAnimSpeed  RB 1
-charAnimTimer  RB 1
-charSizeOf     RB 0
+charY          RB 1 ; Y position of object
+charX          RW 1 ; X position of object
+charAnim       RB 1 ; Animation number
+charAnimFrame  RB 1 ; Frame # of animation
+charAnimSpeed  RB 1 ; Speed of animation
+charAnimTimer  RB 1 ; Timer to keep track of frame
+charDx         RB 1 ; Horizontal speed of object, signed
+charDy         RB 1 ; Vertical speed of object, signed
+charSizeOf     RB 0 ; Size of struct
 
-; Object graphics structure
-RSRESET
-; bit 7 = is active?
-; bit 6 = team [Gecko = 0, Fox = 1]
-; bit 5 = player or football? [0 or 1]
-; bit 4 = direction (1 = left, 0 = right)
-; bits 0-3 = animation frame
-	; 0 = standing
-	; 1 = thinking
-	; 2 = running
-	; 3 = jumping
-	; 4 = tackled
-	; 5 - 16 = reserved
-charRenderInfo       RB 1
-charRenderY          RB 1
-charRenderX          RB 1
-charRenderAnimTimer  RB 1
-charRenderSizeOf     RB 0
-
-FieldHeight EQU $60
+FieldHeight EQU $50
 
 SECTION "Variables",WRAM0[$C000]
 WramStart:
@@ -64,7 +47,7 @@ StatNextLineOff: ; Pointer to table
 StatXOff: ; Pointer to table
 	DS 2
 
-SECTION "ObjectTable",WRAM0[$C100]
+;SECTION "ObjectTable",WRAM0[$C100]
 ; Define 8 objects
 charStruct:
 DS charSizeOf * 6
@@ -72,17 +55,35 @@ charStruct_end:
 
 SECTION "SpriteTable",WRAMX[$DF00]
 SpriteTable:
-DS $9F
+	DS $9F
 SpriteTable_End:
 WramEnd:
 
 SECTION "HiRAM",HRAM
-HramStart:
+HramStart: ; 127 bytes
 
-; 8 renderable objects
-charRenderStruct:
-DS charRenderSizeOf  * 6
-charRenderStruct_end:
+; Permanent section
+SpriteDMA_HiRAM:
+	DS 10
+ActiveObjectsBitfield ; Bit 7 = Object 1, Bit 0 = Object 8
+	DS 1
+ActiveObjectsCount
+	DS 1
+
+; Temp var section
+; Expect a lot of overlap if I run out of HiRAM
+SpriteY: ; DrawSprite
+	DS 1
+SpriteX:
+	DS 1
+SpriteAttribs:
+	DS 1
+SpriteFrame:
+	DS 1
+SpriteCount:
+	DS 1
+SpriteSize:
+	DS 1
 
 HramEnd:
 
