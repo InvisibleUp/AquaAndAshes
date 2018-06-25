@@ -2,15 +2,9 @@
 RSRESET
 ; bit 7 = is active?
 ; bit 6 = team [Gecko = 0, Fox = 1]
-; bit 5 = player or football? [0 or 1]
+; bit 5 = animal or football? [0 or 1]
 ; bit 4 = direction (1 = left, 0 = right)
-; bits 0-3 = animation frame
-	; 0 = standing
-	; 1 = thinking
-	; 2 = running
-	; 3 = jumping
-	; 4 = tackled
-	; 5 - 16 = reserved
+; bit 3 = offense/defense? (for bit5 = 0)
 charInfo       RB 1
 charY          RB 1 ; Y position of object
 charX          RW 1 ; X position of object
@@ -48,7 +42,7 @@ StatXOff: ; Pointer to table
 	DS 2
 
 ;SECTION "ObjectTable",WRAM0[$C100]
-; Define 8 objects
+; Define (6 or 8?) objects
 charStruct:
 DS charSizeOf * 6
 charStruct_end:
@@ -57,6 +51,7 @@ SECTION "SpriteTable",WRAMX[$DF00]
 SpriteTable:
 	DS $9F
 SpriteTable_End:
+; Stack pointer @ $DFFF
 WramEnd:
 
 SECTION "HiRAM",HRAM
@@ -68,6 +63,10 @@ SpriteDMA_HiRAM:
 ActiveObjectsBitfield ; Bit 7 = Object 1, Bit 0 = Object 8
 	DS 1
 ActiveObjectsCount
+	DS 1
+TurnInfo:
+	; Bit 7: Team selected by player. 0 = gecko, 1 = snowfox
+	; Bit 6: Team currently on offense
 	DS 1
 
 ; Temp var section

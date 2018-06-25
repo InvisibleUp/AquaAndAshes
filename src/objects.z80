@@ -40,3 +40,192 @@ ENDR
 	ldh [ActiveObjectsCount], a
 
 ret
+
+; HL = pointer to beginning of given object
+; Returned HL will be at charAnimSpeed
+TickObject_Animation:
+	; Set HL to charAnim
+	ld d, 0
+	ld e, charAnim
+	add hl, de ; (HL @ charAnim)
+; Set animation pointer to DE
+	ld de, animations_pointers_start
+	ld a, [hl+] ; A = animation #
+	; Move HL to BC
+	ld b, h
+	ld c, l
+	; HL = Animation frame *= 2
+	rla
+	ld h, 0
+	ld l, a
+	; Animation pointer (=HL) to relevant animation
+	add hl, de
+
+	; Set DE=[HL] (animation data)
+	ld a, [hl+]
+	ld e, a
+	ld d, [hl]
+	; Restore HL to be object pointer (@ charAnim)
+	ld h, b
+	ld l, c
+	; Store # of frames in B
+	inc de ; DE = # of frames
+	ld a, [de]
+	dec a ; Make zero-indexed
+	ld b, a
+	; Store current frame into C
+	ld a, [hl+] ; HL @ charAnimFrame
+	ld c, a
+
+	; Get animation timer (range from AnimSpeed to 0)
+	inc hl
+	ld a, [hl-] ; HL @ charAnimSpeed
+	or a
+	ret nz ; Return if not time to animate
+
+	; Set hl to animation frame
+	dec hl ; charAnimFrame
+	; Check if we need to loop the animation
+	; (Check if current frame == number of frames)
+	ld a, b
+	sub a, c
+	jr z, .needsLoop
+	
+	; Increment animation frame, FFW hl, return
+	inc [hl] ; @ charAnimFrame
+	inc hl ; @ charAnimSpeed
+	ret
+
+.needsLoop
+	; Check what action we need to do
+	inc de ; DE = Loop Action
+	ld a, [de]
+	rla ; Carry = action type
+	jr nc, .getFrame
+
+	; Set animation to a
+	srl a ; This is equal to [de] & %01111111
+	dec hl ; HL @ charAnimFrame
+	ld [hl+], a ; HL @ charAnimSpeed
+
+	; Set frame to 0
+	xor a
+	jr .setFrame
+
+.getFrame:
+	; Adjust [de] to be frame #
+	srl a
+
+.setFrame:
+	; Store animation frame into object RAM and return
+	ld [hl+], a ; HL @ charAnimSpeed
+ret
+
+TickObject_Timer: ; (HL @ charAnimSpeed)
+	; Get animation speed and current timer value
+	ld a, [hl+]
+	ld b, [hl]
+	; Check if speed == value
+	sub a, b
+	jr z, .resetTimer
+	; Increment timer
+	inc b
+	ld [hl], b
+	jr .done
+.resetTimer:
+	; Set timer = 0
+	xor a
+	ld [hl], a
+.done:
+	; Set HL to next object attributes and return
+	ld bc, (charSizeOf - charAnimTimer)
+	add hl, bc
+	ret
+
+TickObject_Physics:
+	; TODO: this
+	ret
+
+TickObject_PlayerInput:
+	ret
+
+TickObject_AI_Offense:
+	ret
+TickObject_AI_Defense:
+	ret
+
+; HL @ attributes
+TickObject_Offense:
+; Our team?
+	ld b, [hl] ; B = attributes
+	ld a, [TurnInfo] ; Bit 7 = team #
+
+	; Check if bit 6 of B = bit 7 of A
+	rl b
+	and a, b ; Bit 7 is 1 if player team = object team
+	rla ; Carry flag has our answer. 
+	; B = attributes, shifted left 1
+	; A is garbage
+	jr nc, .enemyTeam
+	; Jump to player input routine
+	jp TickObject_PlayerInput
+.enemyTeam
+; Our turn?
+	; Check if (now) bit 7 of B = bit 7 of A
+	ld a, [TurnInfo]
+	rla
+	and a, b
+	rla ; Carry flag is 1 if offense team = object team
+	jp c, TickObject_AI_Offense ; Do offense stuff
+	jp TickObject_AI_Defense ; Try and stop player's offense
+
+; HL = object offset
+TickObject:
+; Get attributes in compact form
+	ld a, [hl]
+	rla
+	ret nc ; Return if not active
+	; A = [team],[type],[dir],[position],X,X,X,X
+	; Check if type == football, and if so, skip this all
+	bit 6, a
+	jr nz, .AnimalActionDone
+	; Otherwise "call" the proper dispatch function
+	; Push the return address so that ret still works, but we
+	; don't have to fiddle with jumps after the call
+	ld bc, .AnimalActionDone
+	push bc
+	bit 4, a
+	jp z, TickObject_Offense
+	jp TickObject_AI_Defense ; All defense is AI controlled
+
+.AnimalActionDone:
+	; Do physics stuff
+	call TickObject_Physics
+	; Do animaton stuff
+	call TickObject_Animation ; (HL @ charAnimSpeed)
+	; Update timer
+	call TickObject_Timer ; (HL @ next object)
+ret
+
+; Call TickObject for all objects
+TickAllObjects:
+	ld hl, charStruct
+	; We're going to need to keep bc on the stack...
+	ldh a, [ActiveObjectsCount]
+	ld b, a
+	ldh a, [ActiveObjectsBitfield]
+	ld c, a
+.loop:
+	rl c
+	jr nc, .checkdone
+	dec b
+
+	push bc
+	call TickObject
+	pop bc
+
+.checkdone
+	ld a, b
+	or a
+	ret z
+	jr .loop

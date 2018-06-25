@@ -41,7 +41,7 @@ ret
 ; hl = input object location [input]
 PrepareObject:
 	; Stash output so we have some more registers
-	push de
+	push de ; + 2
 
 	; Load attributes into HiRAM
 	ld a, [hl+] ; @ charY
@@ -55,20 +55,26 @@ PrepareObject:
 	call GetScreenX ; @ charAnim
 	ldh [SpriteX], a
 
-	; Get the animation number
-	ld a, [hl+] ; @ charAnimFrame
-	; Multiply by 2 because words
-	sla a
-
-	; Get animation frame and load into HiRAM
-	ld a, [hl+]
-	sla a
+	; Get animation frame and load into HiRAM 
+	; (going a bit out of order to save a register)
+	inc hl
+	inc hl
+	inc hl ; HL @ charAnimFrame
+	ld a, [hl-] ; @ charAnim
+	sla a ; Multiply by 2
 	ldh [SpriteFrame], a
 
-	; Stash HL
-	push hl
+	; Get the animation number
+	ld a, [hl] ; @ charAnim
+	sla a
 
-	; Look up the animation offset
+	; Set HL to next object and stash HL (it's now free!)
+	ld d, 0
+	ld e, (charSizeOf - charAnim)
+	add hl, de
+	push hl ; + 4
+
+	; Look up the animation offset (stored in A)
 	ld d, HIGH(animations_pointers_start)
 	add a, LOW(animations_pointers_start)
 	jr nc, .nocarry_1
@@ -88,6 +94,7 @@ PrepareObject:
 	ld a, [bc]
 	inc bc
 	inc a ; For loop later
+	;sla a
 	ldh [SpriteCount], a ; Stash
 
 	ld a, [bc]
@@ -111,12 +118,19 @@ PrepareObject:
 .nocarry_2:
 .skipRightAdjust:
 	inc bc ; Get to start of mapping list
+	
+	; Add SpriteFrame * 2 to mapping list
+	ld h, 0
+	ldh a, [SpriteFrame]
+	ld l, a
+	add hl, bc
+	ld b, h
+	ld c, l
 
 	ld hl, sp+2 ; HL = OAM buffer
 	ld a, [hl+]
 	ld d, a
-	ld a, [hl]
-	ld h, a
+	ld h, [hl]
 	ld l, d
 .loop:
 	; Out of sprites?
@@ -125,16 +139,12 @@ PrepareObject:
 	jr z, .endloop
 	ldh [SpriteCount], a
 
-	; de = bc (mapping list) + sprite no.
-	sla a
-	add a, c
-	ld d, b
-	ld e, a
-	jr nc, .nocarry_3
-	inc d
-.nocarry_3:
-	push bc ; Don't need this right now, do need registers
+	push bc ; Don't need original mapping list right now, do need registers ( + 6 )
+	; I have the suspicision we can get rid of this push/pop
 
+	; TODO: Get rid of me!
+	ld d, b
+	ld e, c
 	; Read mapping data for this frame
 	ld a, [de]
 	ld c, a
@@ -179,7 +189,7 @@ PrepareObject:
 .endloop_subsprite:
 
 	; And now get the next sprite
-	pop bc
+	pop bc ; ( + 4 )
 	ldh a, [SpriteSize]
 	add a, c
 	ld c, a
@@ -194,8 +204,8 @@ PrepareObject:
 	ld d, a
 	ld a, l
 	ld e, a
-	pop hl ; Object input
-	pop bc ; OAM output
+	pop hl ; Object input ( + 2 )
+	pop bc ; OAM output ( + 0 )
 
 ret
 

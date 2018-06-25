@@ -56,10 +56,10 @@ mappings_arcticfox_standing_right:
 
 mappings_arcticfox_standing_left:
     DB 4 ; length
-    DB   0,  -8, arcticfox_standing_tile+0, arcticfox_metadata_left ; Top-right
-    DB  16,  -8, arcticfox_standing_tile+2, arcticfox_metadata_left ; Bottom-right
-    DB   0,   0, arcticfox_standing_tile+4, arcticfox_metadata_left ; Top-left
-    DB  16,   0, arcticfox_standing_tile+6, arcticfox_metadata_left ; Bottom-left
+    DB -16,   0, arcticfox_standing_tile+0, arcticfox_metadata_left ; Top-right
+    DB   0,   0, arcticfox_standing_tile+2, arcticfox_metadata_left ; Bottom-right
+    DB -16,  -8, arcticfox_standing_tile+4, arcticfox_metadata_left ; Top-left
+    DB   0,  -8, arcticfox_standing_tile+6, arcticfox_metadata_left ; Bottom-left
        
 mappings_arcticfox_tail_right_1:
     DB 2

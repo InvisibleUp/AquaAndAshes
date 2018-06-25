@@ -4,8 +4,7 @@ incFieldX:
 	ld hl, FieldX
 	ld a, [hl+]
 	ld d, a
-	ld a, [hl]
-	ld e, a
+	ld e, [hl]
 	dec de
 	ld a, e
 	ld [hl-], a
@@ -42,13 +41,11 @@ decFieldX:
 	ld hl, FieldX
 	ld a, [hl+]
 	ld d, a
-	ld a, [hl]
-	ld e, a
+	ld e, [hl]
 	inc de
 	ld a, e
 	ld [hl-], a
-	ld a, d
-	ld [hl], a
+	ld [hl], d
 
 	ld a, [GlobalTimer]
 	ld b, a
@@ -82,8 +79,8 @@ scrollLayer:
 	; Load table offset into DE
 	ld a, [hl+] 
 	ld d, a
-	ld a, [hl+] ; HL points to StatXOff
-	ld e, a
+	ld e, [hl] ; HL points to StatXOff
+	inc hl
 
 	; Load value
 	ld a, [de]
@@ -99,8 +96,7 @@ scrollLayer:
 	; Set scroll position
 	ld a, [hl+] 
 	ld d, a
-	ld a, [hl+]
-	ld e, a
+	ld e, [hl]
 
 	ld a, [de]
 	ldh [GB_SCROLL_X], a

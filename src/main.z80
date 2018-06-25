@@ -43,58 +43,6 @@ lcdc:
     ld h, a
     jp hl ; This better be valid...
 
-updateTimer:
-    ld hl, GlobalTimer
-    inc [hl]
-    ld b, [hl] ; B = Global Timer
-    ld hl, charStruct + charAnimSpeed
-
-    ldh a, [ActiveObjectsBitfield]
-    ld e, a
-    ldh a, [ActiveObjectsCount]
-    ld c, a
-
-    or a ; Are there any objects at all?
-    ret z ; If not, just quit
-
-.objloop:
-    rl e ; Is object visible?
-    jr nc, .objloop_checkdone
-    dec c ; Reduce active objects count
-
-    ld a, [hl] ; A = timer speed
-    or a, a
-    jr z, .updateobjtimer ; Always update
-
-    ld d, a ; D = timer speed (# of iterations)
-    ld a, b ; A = global timer
-.shiftloop:
-    rra
-    jr nc, .objloop_checkdone ; If all bits are not 1, don't update
-    dec d
-    jr nz, .shiftloop
-
-.updateobjtimer
-    inc hl
-    ld a, [hl] ; A = timer
-    inc a
-    ld [hl], a
-
-.objloop_checkdone:
-    ; Bump HL up to next object
-    ld a, charSizeOf - (charAnimTimer + 1)
-    add l
-    ld l, a
-    jr nc, .nocarry
-    inc h
-.nocarry:
-
-    ld a, c
-    or a ; Any objects left?
-    jr nz, .objloop
-
-ret
-
 clearRAM:
    ; Clear RAM and VRAM
     xor a
@@ -197,11 +145,12 @@ main:
     ldh [GB_INTERRUPT_ENABLE], a
 
     ; Set stack to top of WRAM
-    ld sp, $DFFE
+    ; (yes, this odd address kills me inside)
+    ld sp, $DFFF
 
     ; Init PPU
     call LoadGFX
-
+    
     ; Init objects
     ld hl, charStruct
     ld a, %11010000 ; Snowfox, facing left
@@ -258,18 +207,21 @@ main:
     ei
 
 .loop:
-    ; Set parallax data pointers
+    ; Get frame data ready
     call resetScrollLayer
+    call GenerateActiveObjectsBitfield 
 
     ; Game logic
-    call incFieldX
-
-    ; Update timers and set active objects bitfield
-    call GenerateActiveObjectsBitfield
-    call updateTimer
+    call TickAllObjects
 
     ; Prepare graphics data
+    ;call MoveFieldX
+    call incFieldX
     call PrepareAllObjects
+
+    ; Tick global timer
+    ld hl, GlobalTimer
+    inc [hl]
 
     ; Wait for VBlank
     xor a
