@@ -82,9 +82,9 @@ scrollLayer:
 	ld e, [hl] ; HL points to StatXOff
 	inc hl
 
-	; Load value
+	; Set next interrupt scanline
 	ld a, [de]
-	ldh [GB_SCANLINE_TRIGGER], a
+	ldh [rLYC], a
 
 	; Store incremented pointer
 	inc de
@@ -99,7 +99,7 @@ scrollLayer:
 	ld e, [hl]
 
 	ld a, [de]
-	ldh [GB_SCROLL_X], a
+	ldh [rSCX], a
 
 	inc de
 	ld a, d
@@ -117,7 +117,7 @@ resetScrollLayer:
 ;	ld hl, ParallaxLayer1
 ;	ld a, [hl]
 	xor a
-	ldh [GB_SCROLL_X], a
+	ldh [rSCX], a
 
 initScrollLayer:
 
@@ -126,7 +126,7 @@ initScrollLayer:
 
 	; Reset LYC register
 	ld a, [hl]
-	ldh [GB_SCANLINE_TRIGGER], a
+	ldh [rLYC], a
 
 	; Increment LYC pointer to next entry
 	inc hl

@@ -1,29 +1,33 @@
 ;; Macros
 WaitForVBlank: MACRO
-	ld   hl,GB_INTERRUPT_FLAG           ; Load interrupt flag byte into HL
-.wait	halt                                ; suspend CPU - wait for ANY interrupt
-	bit  GB_INTERRUPT_VBLANK_BIT, [hl]  ; VBlank interrupt flag on?
+	ld   hl,rIF                         ; Load interrupt flag byte into HL
+.wait	ld   a, IEF_VBLANK
+	halt                                ; suspend CPU - wait for ANY interrupt
+	and a, [hl]                         ; VBlank interrupt flag on?
 	jr   z, .wait                       ; wait more if zero
-	res  GB_INTERRUPT_VBLANK_BIT, [hl]  ; set vblank_flag back to zero
+	ld   a, IEF_VBLANK
+	cpl
+	and a, [hl]                         ; set vblank_flag back to zero
+
 	ENDM
 
 ;; Functions
 DisableLCD:
 	di
 	WaitForVBlank
-	ld a,[GB_LCD_CTRL]
-	res GB_LCD_CTRL_BIT_ENABLE,a
-	ld [GB_LCD_CTRL],a
+	ld a,[rLCDC]
+	res LCDCB_ON,a
+	ld [rLCDC],a
 	ret
 
 EnableLCD:
-	ld a,[GB_LCD_CTRL]
-	set GB_LCD_CTRL_BIT_ENABLE,a
-	ld [GB_LCD_CTRL],a
+	ld a,[rLCDC]
+	set LCDCB_ON,a
+	ld [rLCDC],a
 	reti
 
 InitDisplay:
-	ld a, GB_LCD_CTRL_ON | GB_LCD_CTRL_BG_ON | GB_LCD_CTRL_OBJ_ON | \
-	      GB_LCD_CTRL_OBJ_8x16 | GB_LCD_CTRL_BG_MAP1 | GB_LCD_CTRL_TILESET1
-	ld [GB_LCD_CTRL],a
+	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_OBJON | \
+	      LCDCF_OBJ16 | LCDCF_BG8800 | LCDCF_BG9800
+	ld [rLCDC],a
 	ret

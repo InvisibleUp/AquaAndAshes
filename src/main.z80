@@ -1,7 +1,6 @@
 include "src/constants.z80"
 include "src/variables.z80"
-include "src/gameboy.z80" ; GB constants
-
+include "src/hardware.inc" ; GB constants
 include "src/header.z80" ; ROM header
 
 ; Core Libraries
@@ -72,17 +71,17 @@ LoadGFX:
 
     ; Set palette
     ld a, %11100100
-    ld [GB_PALETTE_BG], a
-    ld [GB_PALETTE_OBJ1], a
+    ld [rBGP], a
+    ld [rOBP0], a
     ; Light palette
     rlca
     rlca
-    ld [GB_PALETTE_OBJ2], a
+    ld [rOBP1], a
 
     ; Set scroll position
     xor a
-    ld [GB_SCROLL_X], a
-    ld [GB_SCROLL_Y], a
+    ld [rSCX], a
+    ld [rSCY], a
 
     ; Clear RAM
     call clearRAM
@@ -95,23 +94,23 @@ LoadGFX:
 
     ; Load graphics
     ld hl, gfx_start
-    ld de, GB_RAM_TILE
+    ld de, _VRAM
     ld bc, gfx_end - gfx_start
     call memcpy
 
     ld hl, font
-    ld de, GB_RAM_TILE + $800
+    ld de, _VRAM + $800
     ld bc, font_end - font
     call memcpy
 
     ld hl, bg_start
-    ld de, GB_RAM_TILE + $1000
+    ld de, _VRAM + $1000
     ld bc, bg_end - bg_start
     call memcpy
 
     ; Load background
     ld de, bgmap_start
-    ld hl, GB_RAM_MAP
+    ld hl, _SCRN0
     ld b, 18
 .bgLoop_Row:
     ld c, 32
@@ -126,7 +125,7 @@ LoadGFX:
     jr nz, .bgLoop_Row
 
     ; Lay down some text
-    ld hl, GB_RAM_MAP + 32
+    ld hl, _SCRN0 + 32
     ld a, $85
     ld [hl+], a
     ld [hl+], a
@@ -138,15 +137,15 @@ ret
 
 ; Main Loop
 main:
-    ; Set interrupts and timers
-    xor a
-    ldh [GB_INTERRUPT_FLAG], a
-    ld a, GB_INTERRUPT_VBLANK | GB_INTERRUPT_STAT
-    ldh [GB_INTERRUPT_ENABLE], a
-
     ; Set stack to top of WRAM
     ; (yes, this odd address kills me inside)
     ld sp, $DFFF
+
+    ; Set interrupts and timers
+    xor a
+    ldh [rIF], a
+    ld a, IEF_VBLANK | IEF_LCDC
+    ldh [rIE], a
 
     ; Init PPU
     call LoadGFX
@@ -164,24 +163,24 @@ main:
     xor a ; Dx, Dy
     ld [hl+], a
     ld [hl+], a
-    ld a, 3 ; Animation speed
+    ld a, 5 ; Animation speed
     ld [hl+], a
     inc hl
-;
-;    ld a, %10000000 ; Gecko, facing right
-;    ld [hl+], a
-;    ld a, FieldHeight ; Y
-;    ld [hl+], a
-;    xor a ; X High
-;    ld [hl+], a
-;    ld a, $40 ; X low
-;    ld [hl+], a
-;    xor a ; Dx, Dy
-;    ld [hl+], a
-;    ld [hl+], a
-;    ld a, 0 ; Animation speed
-;    ld [hl+], a
-;    inc hl
+
+    ld a, %10000000 ; Gecko, facing right
+    ld [hl+], a
+    ld a, FieldHeight ; Y
+    ld [hl+], a
+    xor a ; X High
+    ld [hl+], a
+    ld a, $40 ; X low
+    ld [hl+], a
+    xor a ; Dx, Dy
+    ld [hl+], a
+    ld [hl+], a
+    ld a, 0 ; Animation speed
+    ld [hl+], a
+    inc hl
 
     ; Copy DMA code to WRAM
     ld hl, SpriteDMA
@@ -200,8 +199,8 @@ main:
     call initScrollLayer
 
     ; Turn on parallax stuff now that it's safe-ish
-    ld a, GB_LCD_STAT_SCANLINE_ENABLE
-    ldh [GB_LCD_STAT], a 
+    ld a, STATF_LYC
+    ldh [rSTAT], a 
 
     WaitForVBlank
     ei
