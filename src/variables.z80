@@ -25,6 +25,11 @@ GlobalTimer:
 WaitingForVBlank: ; 0 = waiting, 1 = busy
 	DS 1
 
+LastButtons:
+	DS 1
+ButtonStreak: ; Capped at 255
+	DS 1
+
 FieldX:
 	DS 2
 ParallaxLayer1: ; Grass -> dirt
@@ -60,6 +65,8 @@ HramStart: ; 127 bytes
 ; Permanent section
 SpriteDMA_HiRAM:
 	DS 10
+JoypadButtons: ; First nybble (left to right) is direction, second is buttons
+	DS 1
 ActiveObjectsBitfield ; Bit 7 = Object 1, Bit 0 = Object 8
 	DS 1
 ActiveObjectsCount

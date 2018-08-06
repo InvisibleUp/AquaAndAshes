@@ -6,6 +6,7 @@ include "src/header.z80" ; ROM header
 ; Core Libraries
 include "src/memory.z80"
 include "src/display.z80"
+include "src/joypad.z80"
 include "src/math.z80"
 
 ; Game stuff
@@ -125,12 +126,12 @@ LoadGFX:
     jr nz, .bgLoop_Row
 
     ; Lay down some text
-    ld hl, _SCRN0 + 32
-    ld a, $85
-    ld [hl+], a
-    ld [hl+], a
-    ld [hl+], a
-    ld [hl+], a
+;    ld hl, _SCRN0 + 32
+;    ld a, $85
+;    ld [hl+], a
+;    ld [hl+], a
+;    ld [hl+], a
+;    ld [hl+], a
 
     call InitDisplay
 ret
@@ -151,42 +152,20 @@ main:
     call LoadGFX
     
     ; Init objects
-    ld hl, charStruct
-    ld a, %11010000 ; Snowfox, facing left
-    ld [hl+], a
-    ld a, FieldHeight ; Y
-    ld [hl+], a
-    xor a ; X High
-    ld [hl+], a
-    ld a, $80 ; X low
-    ld [hl+], a
-    xor a ; Dx, Dy
-    ld [hl+], a
-    ld [hl+], a
-    ld a, 5 ; Animation speed
-    ld [hl+], a
-    inc hl
-
-    ld a, %10000000 ; Gecko, facing right
-    ld [hl+], a
-    ld a, FieldHeight ; Y
-    ld [hl+], a
-    xor a ; X High
-    ld [hl+], a
-    ld a, $40 ; X low
-    ld [hl+], a
-    xor a ; Dx, Dy
-    ld [hl+], a
-    ld [hl+], a
-    ld a, 0 ; Animation speed
-    ld [hl+], a
-    inc hl
+    ld hl, SampleObject
+    ld de, charStruct
+    ld bc, charSizeOf
+    call memcpy
 
     ; Copy DMA code to WRAM
     ld hl, SpriteDMA
     ld de, $FF80
     ld bc, SpriteDMA_End - SpriteDMA
     call memcpy
+
+    ; Testing stuff
+    ld a, $C0
+    ld [TurnInfo], a
 
     ; Set parallax interrupt
     ld hl, scrollLayer
@@ -209,6 +188,7 @@ main:
     ; Get frame data ready
     call resetScrollLayer
     call GenerateActiveObjectsBitfield 
+    call readJoypad
 
     ; Game logic
     call TickAllObjects

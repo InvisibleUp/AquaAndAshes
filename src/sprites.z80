@@ -53,6 +53,7 @@ PrepareObject:
 
 	; Calculate X and load into HiRAM
 	call GetScreenX ; @ charAnim
+	add a, [hl]
 	ldh [SpriteX], a
 
 	; Get animation frame and load into HiRAM 

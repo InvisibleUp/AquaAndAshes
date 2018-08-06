@@ -1,8 +1,24 @@
+; Physics acceleration tables and stuff
+MAXDX EQU 3
+MAXDY EQU -4
+
+; Number of frames button must be held for to accelerate
+; Uses absolute value
+AccelTable:
+	DB 4 ; DX = 0
+	DB 16 ; DX = 1
+	DB 64 ; DX = 2
+	DB 128 ; DX = 3
+DeaccelTable:
+	DB 32  ; DX = 0
+	DB 16  ; DX = 1
+	DB 8  ; DX = 2
+	DB 4  ; DX = 3
+
 ; Create bitfield in a containing a list of active objects.
 ; This is clever because you can rr x; jr nc to skip easily.
 ; We're storing the result in HiRAM for easy access.
 ; Also includes number of active objects as it's own variable.
-
 GenerateActiveObjectsBitfield:
 	xor a
 	ld b, a ; result
@@ -143,10 +159,206 @@ TickObject_Timer: ; (HL @ charAnimSpeed)
 	ret
 
 TickObject_Physics:
-	; TODO: this
+
+	; Get dX and dY
+	ld de, (charDx)
+	add hl, de ; @ charDx
+	ld c, [hl] ; C = charDx
+	
+	inc hl     ; @ charDy
+	ld b, [hl]
+
+	; Move object pointer to Y
+	ld a, 255
+	xor a, e
+	ld e, a
+	inc e
+	ld d, 255
+	add hl, de ; @ charY
+
+.addY:
+	; Add dY to Y
+	ld a, [hl]
+	add a, b
+	ld [hl+], a ; @ charX.1
+
+.addX
+	; Move HL to DE
+	ld d, h
+	ld e, l
+
+	; Sign-extend C into B
+	ld a, c
+	rla
+	ld a, 0
+	ld b, 0
+	sbc b
+	ld b, a
+
+	; Set HL to [DE]
+	ld a, [de]
+	ld h, a
+	inc de ; @ charX.2
+	ld a, [de]
+	ld l, a
+	dec de ; @ charX.1
+
+	; Add BC to HL
+	add hl, bc
+
+	; Write HL to [DE]
+	ld a, h
+	ld [de], a
+	ld a, l
+	inc de ; @ charX.2
+	ld [de], a
+
+	; Restore HL
+	ld h, d
+	ld l, e
+
+	; Rewind and exit
+	dec hl ; @charX.1
+	dec hl ; @charY
+	dec hl ; @charInfo
 	ret
 
 TickObject_PlayerInput:
+	; Store charInfo somewhere
+;	ld a, [hl]
+
+	; FFW HL to dX
+	push hl
+	ld de, (charDx)
+	add hl, de
+
+;	ld d, a ; D = charInfo
+
+; Move player with keys
+; We want to deaccelerate when:
+;	- Player has let go of all buttons
+;	- Player is trying to go opposite of DX
+; We want to accelerate when:
+;	- Player is not moving but is pressing a button
+;	- Player is trying to go same as DX
+
+	; Are we pressing any buttons?
+	ldh a, [JoypadButtons]
+;	ld a, [GlobalTimer]
+;	bit 6, a
+;	jr z, .tmp1
+;	ld a, $10
+;	jr .tmp2
+;.tmp1:
+;	ld a, $20
+;.tmp2:
+	ld b, a ; B = Joypad buttons
+	or a
+	jr z, .doDeaccel ; Nothing is pressed
+
+	and a, %00110000
+	ld c, a ; C = left/right this frame
+
+	ld a, [hl] ; Load DX into a
+	or a ; Have we JUST started moving?
+	;or c
+	jr z, .doAccel ; If so, accelerate
+	
+	; Are we pressing the opposite direction as dX?
+	; What I need:
+	; sign(DX) is positive (right) and left is pressed or
+	; sign(DX) is negative (left) and right is pressed:
+	; then deaccelerate
+	; TODO: Condense this a bit
+
+	bit 7, [hl]
+	jr z, .checkRight
+
+.checkLeft: ; Moving left
+	ld a, c
+	and a, $10 ; Pressing left?
+	jr z, .doAccel ; Accelerate
+	jr .doDeaccel
+
+.checkRight:
+	ld a, c
+	and a, $20 ; Pressing right?
+	jr z, .doAccel ; Accelerate
+
+.doDeaccel
+	; Round towards zero
+	; B is free here
+
+	; Are we already stopped?
+	ld b, [hl]
+	ld a, b
+	or a
+	jr z, .noAccel
+
+	sla b ; CF = sign (if negative, = 1)
+	; D U L R X X X X
+	; We're going to shift 1 left if carry flag is off.
+	ld b, 1
+	jr c, .noShift
+	sla b
+.noShift:
+	swap b ; And this is our fake joystick input
+	ld a, [hl]
+	AbsA
+	push hl
+	ld hl, DeaccelTable ; With our deacceleration table
+	jr .addSpeedToTable
+
+.doAccel:
+	; Only allow this every nth frame depending on lookup table
+	ld a, [hl]
+	AbsA
+	push hl
+	ld hl, AccelTable
+.addSpeedToTable:
+	add a, l
+	ld l, a
+	jr nc, .nocarry
+	inc h
+.nocarry:
+	ld a, [ButtonStreak]
+	;and a, [hl]
+	sub a, [hl]
+	pop hl
+	jr c, .noAccel
+
+	; Test buttons
+	bit PADB_LEFT, b
+	jr z, .notLeft
+
+	dec [hl]
+	jr .notRight
+.notLeft:
+	bit PADB_RIGHT, b
+	jr z, .notRight
+
+	inc [hl]
+.notRight
+
+; Cap dX
+	ld a, [hl]
+	AbsA
+	sub a, MAXDX
+	jr c, .skipCap
+	jr z, .skipCap
+	
+	bit 7, [hl]
+	jr z, .capPos
+	inc [hl]
+	jr .skipCap
+.capPos:
+	dec [hl]
+.skipCap:
+.noAccel:
+
+
+; Restore HL and return
+	pop hl
 	ret
 
 TickObject_AI_Offense:
@@ -229,3 +441,15 @@ TickAllObjects:
 	or a
 	ret z
 	jr .loop
+
+; Just the definition for a sample object
+SampleObject:
+	DB %11010000 ; charInfo (snowfox, left)
+	DB FieldHeight
+	DW $0080 ; X
+	DB 0 ; Animation
+	DB 0 ; Frame
+	DB 5 ; Animation Speed
+	DB 0 ; Animation Timer
+	DB 0 ; Dx
+	DB 0 ; Dy
