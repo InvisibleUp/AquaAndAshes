@@ -6,15 +6,16 @@ RSRESET
 ; bit 4 = direction (1 = left, 0 = right)
 ; bit 3 = offense/defense? (for bit5 = 0)
 charInfo       RB 1
-charY          RB 1 ; Y position of object
-charX          RW 1 ; X position of object
+charY          RB 2 ; Y position of object (8.8)
+charX          RB 3 ; X position of object (16.8 bits)
 charAnim       RB 1 ; Animation number
 charAnimFrame  RB 1 ; Frame # of animation
 charAnimSpeed  RB 1 ; Speed of animation
 charAnimTimer  RB 1 ; Timer to keep track of frame
-charDx         RB 1 ; Horizontal speed of object, signed
-charDy         RB 1 ; Vertical speed of object, signed
+charDx         RB 2 ; Horizontal speed of object, signed (8.8)
+charDy         RB 2 ; Vertical speed of object, signed (8.8)
 charSizeOf     RB 0 ; Size of struct
+charNext       RB 0 ; Offset to next struct
 
 FieldHeight EQU $60
 
@@ -27,7 +28,9 @@ WaitingForVBlank: ; 0 = waiting, 1 = busy
 
 LastButtons:
 	DS 1
-ButtonStreak: ; Capped at 255
+DirButtonStreak: ; Capped at 255
+	DS 1
+JumpButtonStreak:
 	DS 1
 
 FieldX:

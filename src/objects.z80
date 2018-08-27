@@ -8,7 +8,7 @@ AccelTable:
 	DB 4 ; DX = 0
 	DB 16 ; DX = 1
 	DB 64 ; DX = 2
-	DB 128 ; DX = 3
+	DB 90 ; DX = 3
 DeaccelTable:
 	DB 32  ; DX = 0
 	DB 16  ; DX = 1
@@ -60,16 +60,17 @@ ret
 ; HL = pointer to beginning of given object
 ; Returned HL will be at charAnimSpeed
 TickObject_Animation:
+CHAROFFSET = charInfo
+
 	; Set HL to charAnim
-	ld d, 0
-	ld e, charAnim
-	add hl, de ; (HL @ charAnim)
-; Set animation pointer to DE
+	SeekStructAndSet CHAROFFSET, charAnim, h, l
+	; Set animation pointer to DE
 	ld de, animations_pointers_start
-	ld a, [hl+] ; A = animation #
-	; Move HL to BC
+	ld a, [hl] ; A = animation #
+	; Move HL (object struct) to stack
 	ld b, h
 	ld c, l
+
 	; HL = Animation frame *= 2
 	rla
 	ld h, 0
@@ -81,26 +82,29 @@ TickObject_Animation:
 	ld a, [hl+]
 	ld e, a
 	ld d, [hl]
+
 	; Restore HL to be object pointer (@ charAnim)
 	ld h, b
 	ld l, c
+CHAROFFSET = charAnim
 	; Store # of frames in B
 	inc de ; DE = # of frames
 	ld a, [de]
 	dec a ; Make zero-indexed
 	ld b, a
 	; Store current frame into C
-	ld a, [hl+] ; HL @ charAnimFrame
+	SeekStructAndSet CHAROFFSET, charAnimFrame, h, l
+	ld a, [hl]
 	ld c, a
 
 	; Get animation timer (range from AnimSpeed to 0)
-	inc hl
-	ld a, [hl-] ; HL @ charAnimSpeed
+	SeekStructAndSet CHAROFFSET, charAnimTimer, h, l
+	ld a, [hl]
 	or a
-	ret nz ; Return if not time to animate
+	jr nz, .return ; Return if not time to animate
 
 	; Set hl to animation frame
-	dec hl ; charAnimFrame
+	SeekStructAndSet CHAROFFSET, charAnimFrame, h, l
 	; Check if we need to loop the animation
 	; (Check if current frame == number of frames)
 	ld a, b
@@ -109,8 +113,7 @@ TickObject_Animation:
 	
 	; Increment animation frame, FFW hl, return
 	inc [hl] ; @ charAnimFrame
-	inc hl ; @ charAnimSpeed
-	ret
+	jr .return
 
 .needsLoop
 	; Check what action we need to do
@@ -121,8 +124,8 @@ TickObject_Animation:
 
 	; Set animation to a
 	srl a ; This is equal to [de] & %01111111
-	dec hl ; HL @ charAnimFrame
-	ld [hl+], a ; HL @ charAnimSpeed
+	SeekStructAndSet CHAROFFSET, charAnim, h, l
+	ld [hl], a 
 
 	; Set frame to 0
 	xor a
@@ -134,12 +137,17 @@ TickObject_Animation:
 
 .setFrame:
 	; Store animation frame into object RAM and return
-	ld [hl+], a ; HL @ charAnimSpeed
+	ld [hl], a
+
+.return
+	SeekStructAndSet CHAROFFSET, charAnimSpeed, h, l
 ret
 
-TickObject_Timer: ; (HL @ charAnimSpeed)
+TickObject_Timer:
+CHAROFFSET = charAnimSpeed
 	; Get animation speed and current timer value
-	ld a, [hl+]
+	ld a, [hl]
+	SeekStructAndSet CHAROFFSET, charAnimTimer, h, l
 	ld b, [hl]
 	; Check if speed == value
 	sub a, b
@@ -154,40 +162,41 @@ TickObject_Timer: ; (HL @ charAnimSpeed)
 	ld [hl], a
 .done:
 	; Set HL to next object attributes and return
-	ld bc, (charSizeOf - charAnimTimer)
-	add hl, bc
+	SeekStructAndSet CHAROFFSET, charNext, h, l
 	ret
 
+; Runs 1 frame of player physics
+; HL = Player object pointer
+; A, BC, DE are clobbered
 TickObject_Physics:
+CHAROFFSET = charInfo
+	push hl
 
 	; Get dX and dY
-	ld de, (charDx)
-	add hl, de ; @ charDx
+	;ld de, (charDx)
+	;add hl, de ; @ charDx
+	SeekStructAndSet CHAROFFSET, charDx, h, l
 	ld c, [hl] ; C = charDx
 	
-	inc hl     ; @ charDy
+	;inc hl     ; @ charDx.2
+	;inc hl     ; @ charDy
+	SeekStructAndSet CHAROFFSET, charDy, h, l
 	ld b, [hl]
 
-	; Move object pointer to Y
-	ld a, 255
-	xor a, e
-	ld e, a
-	inc e
-	ld d, 255
-	add hl, de ; @ charY
+	; Move object pointer (hl) to Y
+	SeekStructAndSet CHAROFFSET, charY, h, l
 
 .addY:
 	; Add dY to Y
 	ld a, [hl]
 	add a, b
-	ld [hl+], a ; @ charX.1
+	ld [hl], a
 
 .addX
-	; Move HL to DE
-	ld d, h
-	ld e, l
+	SeekStructAndSet CHAROFFSET, charX, h, l
+	push hl
 
-	; Sign-extend C into B
+	; Sign-extend C (dX) into B
 	ld a, c
 	rla
 	ld a, 0
@@ -196,45 +205,38 @@ TickObject_Physics:
 	ld b, a
 
 	; Set HL to [DE]
+	pop de
+CHAROFFSET = charX
 	ld a, [de]
 	ld h, a
-	inc de ; @ charX.2
+	SeekStructAndSet CHAROFFSET, charX+1, d, e
 	ld a, [de]
 	ld l, a
-	dec de ; @ charX.1
 
-	; Add BC to HL
+	; Add BC (dX) to HL
 	add hl, bc
 
 	; Write HL to [DE]
+	SeekStructAndSet CHAROFFSET, charX, d, e
 	ld a, h
 	ld [de], a
+	SeekStructAndSet CHAROFFSET, charX+1, d, e
 	ld a, l
-	inc de ; @ charX.2
 	ld [de], a
 
-	; Restore HL
-	ld h, d
-	ld l, e
-
 	; Rewind and exit
-	dec hl ; @charX.1
-	dec hl ; @charY
-	dec hl ; @charInfo
+	pop hl
 	ret
 
 TickObject_PlayerInput:
-	; Store charInfo somewhere
-;	ld a, [hl]
-
+CHAROFFSET = charInfo
 	; FFW HL to dX
 	push hl
-	ld de, (charDx)
-	add hl, de
+	push hl ; need it twice
 
-;	ld d, a ; D = charInfo
+	SeekStructAndSet CHAROFFSET, charDx, h, l
 
-; Move player with keys
+; Move player left/right with keys
 ; We want to deaccelerate when:
 ;	- Player has let go of all buttons
 ;	- Player is trying to go opposite of DX
@@ -244,19 +246,10 @@ TickObject_PlayerInput:
 
 	; Are we pressing any buttons?
 	ldh a, [JoypadButtons]
-;	ld a, [GlobalTimer]
-;	bit 6, a
-;	jr z, .tmp1
-;	ld a, $10
-;	jr .tmp2
-;.tmp1:
-;	ld a, $20
-;.tmp2:
 	ld b, a ; B = Joypad buttons
-	or a
+	and a, PADF_RIGHT | PADF_LEFT
 	jr z, .doDeaccel ; Nothing is pressed
 
-	and a, %00110000
 	ld c, a ; C = left/right this frame
 
 	ld a, [hl] ; Load DX into a
@@ -265,10 +258,6 @@ TickObject_PlayerInput:
 	jr z, .doAccel ; If so, accelerate
 	
 	; Are we pressing the opposite direction as dX?
-	; What I need:
-	; sign(DX) is positive (right) and left is pressed or
-	; sign(DX) is negative (left) and right is pressed:
-	; then deaccelerate
 	; TODO: Condense this a bit
 
 	bit 7, [hl]
@@ -276,13 +265,13 @@ TickObject_PlayerInput:
 
 .checkLeft: ; Moving left
 	ld a, c
-	and a, $10 ; Pressing left?
+	and a, PADF_RIGHT
 	jr z, .doAccel ; Accelerate
 	jr .doDeaccel
 
 .checkRight:
 	ld a, c
-	and a, $20 ; Pressing right?
+	and a, PADF_LEFT
 	jr z, .doAccel ; Accelerate
 
 .doDeaccel
@@ -321,8 +310,7 @@ TickObject_PlayerInput:
 	jr nc, .nocarry
 	inc h
 .nocarry:
-	ld a, [ButtonStreak]
-	;and a, [hl]
+	ld a, [DirButtonStreak]
 	sub a, [hl]
 	pop hl
 	jr c, .noAccel
@@ -356,8 +344,55 @@ TickObject_PlayerInput:
 .skipCap:
 .noAccel:
 
+	jr .noJump ; DEBUG: Skip this for now
+
+; HL @ DX
+; Handle jumping if A button is pressed
+.checkJump:
+	ldh a, [JoypadButtons]
+	and a, PADF_A
+	jr z, .noJump ; Nothing is pressed
+
+	; Rewind HL to Y and load into D
+	inc hl ; @ CharDy
+	ld b, h
+	ld c, l
+	pop hl ; @ CharInfo
+	inc hl ; @ CharY
+	ld d, [hl]
+
+	; FFW HL back to DY
+	ld h, b
+	ld l, c
+
+	; Load JumpButtonStreak into E
+	ld a, [JumpButtonStreak]
+	ld e, a
+
+	; If Y != floor level and JumpButtonStreak == 0, return
+	ld a, FieldHeight
+	sub a, d ; D is free
+	jr z, .checkJumpStreak ; JR if Y == floor level
+	
+	ld a, b
+	or a
+	jr nz, .noJump
+.checkJumpStreak:
+	; If JumpButtonStreak > 16, return
+	ld a, e
+	sub a, 17
+	jr nc, .noJump
+
+.doJump:
+	; If streak % 8 != 0, skip jump
+	ld a, e
+	and a, %1111
+	jr nz, .noJump
+	; Decrement DY
+	dec [hl]
 
 ; Restore HL and return
+.noJump:
 	pop hl
 	ret
 

@@ -47,25 +47,50 @@ readJoypad:
     ld      a, P1F_5 | P1F_4
     ld      [rP1], a
 
-    ; Increment streak counter if direction buttons are the same
+; Increment streak counter if direction buttons are the same
+.DirStreak:
     ldh a, [JoypadButtons]
     and a, $F0
     ld b, a
     ld a, [LastButtons]
     and a, $F0
     sub a, b
-    jp nz, .killStreak
+    jp nz, .killDirStreak
 
-    ld a, [ButtonStreak]
+    ld a, [DirButtonStreak]
     inc a
-    jr nz, .noCapStreak
+    jr nz, .noCapDirStreak
     dec a
 
-.noCapStreak
-    ld [ButtonStreak], a
+.noCapDirStreak
+    ld [DirButtonStreak], a
+    jr .JumpStreak
+
+.killDirStreak
+    xor a
+    ld [DirButtonStreak], a
+
+; Increment streak counter if jump button is the same
+.JumpStreak
+    ldh a, [JoypadButtons]
+    and a, PADF_A
+    ld b, a
+    ld a, [LastButtons]
+    and a, PADF_A
+    sub a, b
+    jp nz, .killJumpStreak
+
+    ld a, [JumpButtonStreak]
+    inc a
+    jr nz, .noCapJumpStreak
+    dec a
+
+.noCapJumpStreak
+    ld [JumpButtonStreak], a
     ret
 
-.killStreak
+.killJumpStreak
     xor a
-    ld [ButtonStreak], a
+    ld [JumpButtonStreak], a
+
     ret
