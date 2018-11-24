@@ -133,61 +133,63 @@ animations_pointers_end:
 ; BACKGROUNDS
 bg_start:
 
-bg_sky:
-    dw `00000000
-    dw `00000000
-    dw `00000000
-    dw `00000000
-    dw `00000000
-    dw `00000000
-    dw `00000000
-    dw `00000000
-bg_grass:
-    dw `12121112
-    dw `12121212
-    dw `22112211
-    dw `11121212
-    dw `22112211
-    dw `21212121
-    dw `12121212
-    dw `12211222
-bg_sky_grass:
-    dw `00000000
-    dw `00000000
-    dw `00000000
-    dw `00000000
-    dw `20020000
-    dw `20202020
-    dw `02021212
-    dw `12211222
-bg_dirt:
-    dw `00110011
-    dw `00000000
-    dw `01100110
-    dw `00000000
-    dw `11001100
-    dw `00000000
-    dw `10011001
-    dw `00000000
+; Can't use backtick wih M4, so make a macro to sidestep that
+define(`dgfx', changequote([, ])[changequote([,])dw `changequote(`,')]changequote(`,'))
 
+bg_sky:
+    dgfx`'00000000
+    dgfx`'00000000
+    dgfx`'00000000
+    dgfx`'00000000
+    dgfx`'00000000
+    dgfx`'00000000
+    dgfx`'00000000
+    dgfx`'00000000
+bg_grass:
+    dgfx`'12121112
+    dgfx`'12121212
+    dgfx`'22112211
+    dgfx`'11121212
+    dgfx`'22112211
+    dgfx`'21212121
+    dgfx`'12121212
+    dgfx`'12211222
+bg_sky_grass:
+    dgfx`'00000000
+    dgfx`'00000000
+    dgfx`'00000000
+    dgfx`'00000000
+    dgfx`'20020000
+    dgfx`'20202020
+    dgfx`'02021212
+    dgfx`'12211222
+bg_dirt:
+    dgfx`'00110011
+    dgfx`'00000000
+    dgfx`'01100110
+    dgfx`'00000000
+    dgfx`'11001100
+    dgfx`'00000000
+    dgfx`'10011001
+    dgfx`'00000000
 bg_dirt_grass:
-    dw `00110011
-    dw `00000000
-    dw `01100110
-    dw `20020000
-    dw `21021100
-    dw `20202020
-    dw `02021212
-    dw `12211222
+    dgfx`'00110011
+    dgfx`'00000000
+    dgfx`'01100110
+    dgfx`'20020000
+    dgfx`'21021100
+    dgfx`'20202020
+    dgfx`'02021212
+    dgfx`'12211222
 bg_grass_dirt:
-    dw `02202002
-    dw `02000000
-    dw `01100110
-    dw `00000000
-    dw `11001100
-    dw `00000000
-    dw `10011001
-    dw `00000000
+    dgfx`'02202002
+    dgfx`'02000000
+    dgfx`'01100110
+    dgfx`'00000000
+    dgfx`'11001100
+    dgfx`'00000000
+    dgfx`'10011001
+    dgfx`'00000000
 bg_end:
 
 bgmap_start:

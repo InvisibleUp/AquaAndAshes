@@ -47,6 +47,13 @@ ret
 ; TODO: Optimize for large distances
 SeekStruct: MACRO
 offset = \2 - \1
+PRINTT "src: "
+PRINTT "\1"
+PRINTT "\tdst: "
+PRINTT "\2"
+PRINTT "\toffset: "
+PRINTV offset
+PRINTT "\n"
     
 IF offset > 0
     .rept offset
@@ -73,99 +80,83 @@ ENDM
 ;;; REGISTER/MEMORY LABEL DEFINITON HELPERS ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-InitRegistry: MACRO
-REGISTRY_IN_USE = 1
-a_SET = 0
-b_SET = 0
-c_SET = 0
-d_SET = 0
-e_SET = 0
-h_SET = 0
-l_SET = 0
-ENDM
-
 ; Defines names for a pair of registers
-; \1 = Prefix name, all caps
-; \2 = first register in pair
-; \3 = second register in pair
-; Defines names \1_HI, \1_LO, \1_REG, \1_REF
-; Checks against variables \2_SET, \3_SET
-RegisterPair: MACRO
-PRINTT "\1: \2\3\n"
+; $1 = Prefix name, all caps
+; $2 = first register in pair
+; $3 = second register in pair
+; Defines names $1_hi, $1_lo, $1_reg, $1_ref
+; Checks against variables $2.set, $3.set
 
-IF \2_SET == 1
-FAIL "\2 is already set!"
-ENDC
+define(`echo', $1)
 
-IF \3_SET == 1
-FAIL "\3 is already set!"
-ENDC
+define(`RegisterPair', `
+    ifdef(`$2_set', FAIL "$2 is already set!")
+    ifdef(`$3_set', FAIL "$3 is already set!")
 
-\2_SET = 1
-\3_SET = 1
+    define(`$2_set', 1)
+    define(`$3_set', 1)
 
-\1_HI EQUS "\2"
-\1_LO EQUS "\3"
-\1_REG EQUS "\2\3"
-\1_REF EQUS "[\2\3]"
-ENDM
+    define(`$1_set', 1)
+    define(`$1_hi', $2)
+    define(`$1_lo', $3)
+    define(`$1_reg', $2`'$3)
+    define(`$1_ref', [$2`'$3])
+')
 
 ; Marks a macro pair as invalid
-; \1 = Prefix name, all caps
-InvalidatePair: MACRO
-PRINTT "\1: INVALID\n"
-
-\1_HI_SET = 0
-PURGE \1_HI
-;\1_HI EQUS "INVALID"
-\1_LO_SET = 0
-PURGE \1_LO
-PURGE \1_REG
-PURGE \1_REF
-;\1_LO EQUS "INVALID"
-;\1_REG EQUS "INVALID"
-;\1_REF EQUS "INVALID"
-ENDM
+; $1 = Prefix name, all caps
+define(`InvalidatePair', `
+    undefine(`$1_set')
+    undefine($1_hi`'_set)
+    undefine(`$1_hi')
+    undefine($1_lo`'_set)
+    undefine(`$1_lo')
+    undefine(`$1_reg')
+    undefine(`$1_ref')
+')
 
 ; Moves a pair to another set of registers, with contents
-; \1 = old pair name
-; \2 = new pair lo
-; \3 = new pair hi
-MovePair: MACRO
-PRINTT "\1 -> \2\3\n"
-IF \2_SET == 1
-FAIL "\2 is already set!"
-ENDC
+; $1 = old pair name
+; $2 = new pair lo
+; $3 = new pair hi
+define(`MovePair', `
+    ifdef(`$2_set', FAIL "$2 is already set!")
+    ifdef(`$3_set', FAIL "$3 is already set!")
 
-IF \3_SET == 1
-FAIL "\3 is already set!"
-ENDC
+    ld $2, $1_hi
+    ld $3, $1_lo
 
-    ld \2, \1_HI
-    ld \3, \1_LO
-    InvalidatePair \1
-    RegisterPair \1, \2, \3
-
-ENDM
+    InvalidatePair($1)
+    RegisterPair($1, $2, $3)
+')
 
 ; Registers a single register
-; \1 = label name
-; \2 = register
-RegisterSingle: MACRO
-IF \2_SET == 1
-FAIL "\2 is already set!"
-ENDC
+; $1 = label name
+; $2 = register
+define(`RegisterSingle', `
+    ifdef(`$2_set', FAIL "$2 is already set!")
 
-\2_SET = 1
-
-\1 EQUS "\2"
-\1_SET EQUS "\2_SET"
-ENDM
+    define(`$1_set', 1)
+    define(`$2_set', 1)
+    define(`$1_reg', $2)
+')
 
 ; Unregisters a single register
-; \1 = label name
-InvalidateSingle: MACRO
-\1_SET = 0
-;PURGE \1
-\1 EQUS "INVALID"
-ENDM
+; $1 = label name
+define(`InvalidateSingle', `
+    undefine($1_reg`'_set)
+    undefine(`$1_reg')
+    undefine(`$1_set')
+')
+
+;TestFunction:
+;	RegisterPair(TMP1, b, c)
+;	RegisterPair(TMP2, d, e)
+;	RegisterPair(TMP3, h, l)
+;	InvalidatePair(TMP1)
+;	InvalidatePair(TMP2)
+;	RegisterPair(TMP1, d, e)
+;	MovePair(TMP3, b, c)
+;	InvalidatePair(TMP1)
+;	InvalidatePair(TMP3)
+;ret

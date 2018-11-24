@@ -415,7 +415,7 @@ TickObject_Offense:
 	; A is garbage
 	jr nc, .enemyTeam
 	; Jump to player input routine
-	jp TickObject_PlayerInput
+	;jp TickObject_PlayerInput
 .enemyTeam
 ; Our turn?
 	; Check if (now) bit 7 of B = bit 7 of A
@@ -480,8 +480,8 @@ TickAllObjects:
 ; Just the definition for a sample object
 SampleObject:
 	DB %11010000 ; charInfo (snowfox, left)
-	DB FieldHeight
-	DW $0080 ; X
+	DB FieldHeight, $00
+	DB $00, $80, $00 ; X
 	DB 0 ; Animation
 	DB 0 ; Frame
 	DB 5 ; Animation Speed

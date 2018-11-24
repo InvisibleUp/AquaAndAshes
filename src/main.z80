@@ -1,4 +1,3 @@
-include "src/constants.z80"
 include "src/variables.z80"
 include "src/hardware.inc" ; GB constants
 include "src/header.z80" ; ROM header

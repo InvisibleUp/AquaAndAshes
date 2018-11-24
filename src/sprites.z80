@@ -35,127 +35,115 @@ GetScreenX:
 	pop de
 ret
 
-TestFunction:
-	InitRegistry
-	RegisterPair TMP1, b, c
-	RegisterPair TMP2, d, e
-	RegisterPair TMP3, h, l
-	InvalidatePair TMP1
-	InvalidatePair TMP2
-	RegisterPair TMP1, d, e
-	MovePair TMP3, b, c
-ret
-
 ; Replaces prepare and the various render routines
 ; HiRAM has a lot of variables, but no inputs
 ; de = output sprite location [input]
 ; hl = input object location [input]
 PrepareObject:
 CHAROFFSET = charInfo
-	InitRegistry
 	; input
-	RegisterPair CHAR, h, l
-	RegisterPair OAMBUFF, d, e
+	RegisterPair(CHAR, h, l)
+	RegisterPair(OAMBUFF, d, e)
 
 	; Stash OAM buffer so we have some more registers
 	push de ; + 2
-	InvalidatePair OAMBUFF
+	InvalidatePair(OAMBUFF)
 
 	; Load attributes into HiRAM
-	ld a, CHAR_REF
+	ld a, CHAR_ref
 	ldh [SpriteAttribs], a
 
 	; Load Y into HiRAM
 	SeekStructAndSet CHAROFFSET, charY, CHAR_HI, CHAR_LO
-	ld a, CHAR_REF
+	ld a, CHAR_ref
 	ldh [SpriteY], a
 
 	; Calculate X and load into HiRAM
 	SeekStructAndSet CHAROFFSET, charX, CHAR_HI, CHAR_LO
 	call GetScreenX
-	add a, CHAR_REF
+	add a, CHAR_ref
 	ldh [SpriteX], a
 
 	; Get animation frame and load into HiRAM 
 	; (going a bit out of order to save a register)
 	SeekStructAndSet CHAROFFSET, charAnimFrame, CHAR_HI, CHAR_LO
-	ld a, CHAR_REF ; @ charAnim
+	ld a, CHAR_ref ; @ charAnim
 	sla a ; Multiply by 2
 	ldh [SpriteFrame], a
 
 	; Get the animation number
 	SeekStructAndSet CHAROFFSET, charAnim, CHAR_HI, CHAR_LO
-	ld a, CHAR_REF ; @ charAnim
+	ld a, CHAR_ref ; @ charAnim
 	sla a
 
 	; Set HL to next object and stash HL (it's now free!)
 	SeekStructAndSet CHAROFFSET, charNext, CHAR_HI, CHAR_LO
-	push CHAR_REG ; + 4
-	InvalidatePair CHAR
+	push CHAR_reg ; + 4
+	InvalidatePair(CHAR)
 
 	; Look up the animation offset (stored in A)
-	RegisterPair ANIMOFF, d, e
+	RegisterPair(ANIMOFF, d, e)
 
-	ld ANIMOFF_HI, HIGH(animations_pointers_start)
+	ld ANIMOFF_hi, HIGH(animations_pointers_start)
 	add a, LOW(animations_pointers_start)
 	jr nc, .nocarry_1
-	inc ANIMOFF_HI
+	inc ANIMOFF_hi
 .nocarry_1
-	ld ANIMOFF_LO, a
+	ld ANIMOFF_lo, a
 
 	; Get pointer to animation table into bc
 	; de is now free
-	RegisterPair ANIMTABLE, b, c
-	ld a, ANIMOFF_REF
-	ld ANIMTABLE_LO, a
-	inc ANIMOFF_REG
-	ld a, ANIMOFF_REF
-	ld ANIMTABLE_HI, a
-	InvalidatePair ANIMOFF
+	RegisterPair(ANIMTABLE, b, c)
+	ld a, ANIMOFF_ref
+	ld ANIMTABLE_lo, a
+	inc ANIMOFF_reg
+	ld a, ANIMOFF_ref
+	ld ANIMTABLE_hi, a
+	InvalidatePair(ANIMOFF)
 
 	; Get number of sprites and number of frames
-	ld a, ANIMTABLE_REF
-	inc ANIMTABLE_REG
+	ld a, ANIMTABLE_ref
+	inc ANIMTABLE_reg
 	inc a ; For loop later
 	ldh [SpriteCount], a ; Stash
 
-	ld a, ANIMTABLE_REF
-	inc ANIMTABLE_REG
+	ld a, ANIMTABLE_ref
+	inc ANIMTABLE_reg
 	sla a
 	ldh [SpriteSize], a
 
-	inc ANIMTABLE_REG ; Skip loop point
+	inc ANIMTABLE_reg ; Skip loop point
 
 	; Determine if we need to skip to right-facing mappings
 	ld a, [SpriteAttribs]
 	and a, %10000
 	jr nz, .skipRightAdjust
 
-	ld a, ANIMTABLE_REF
+	ld a, ANIMTABLE_ref
 	sla a
-	add a, ANIMTABLE_LO
-	ld ANIMTABLE_LO, a
+	add a, ANIMTABLE_lo
+	ld ANIMTABLE_lo, a
 	jr nc, .nocarry_2
-	inc ANIMTABLE_HI
+	inc ANIMTABLE_hi
 .nocarry_2:
 .skipRightAdjust:
-	inc ANIMTABLE_REG ; Get to start of mapping list
+	inc ANIMTABLE_reg ; Get to start of mapping list
 	
 	; Add SpriteFrame * 2 to mapping list
 	ld h, 0
 	ldh a, [SpriteFrame]
 	ld l, a
-	add hl, ANIMTABLE_REG
-	ld ANIMTABLE_HI, h
-	ld ANIMTABLE_LO, l
+	add hl, ANIMTABLE_reg
+	ld ANIMTABLE_hi, h
+	ld ANIMTABLE_lo, l
 
-	RegisterPair OAMBUFF, h, l
-	ld OAMBUFF_REG, sp+2 ; HL = OAM buffer
-	ld a, OAMBUFF_REF
-	inc OAMBUFF_REG
+	RegisterPair(OAMBUFF, h, l)
+	ld OAMBUFF_reg, sp+2 ; HL = OAM buffer
+	ld a, OAMBUFF_ref
+	inc OAMBUFF_reg
 	ld d, a
-	ld OAMBUFF_HI, OAMBUFF_REF
-	ld OAMBUFF_LO, d
+	ld OAMBUFF_hi, OAMBUFF_ref
+	ld OAMBUFF_lo, d
 .loop:
 	; Out of sprites?
 	ldh a, [SpriteCount]
@@ -165,77 +153,81 @@ CHAROFFSET = charInfo
 
 	; Don't need original mapping list right now, do need registers ( + 6 )
 	; I have the suspicision we can get rid of this push/pop
-	push ANIMTABLE_REG 
+	push ANIMTABLE_reg 
 
-	MovePair ANIMTABLE, d, e
-	RegisterPair MAPOFF, b, c
+	MovePair(ANIMTABLE, d, e)
+	RegisterPair(MAPOFF, b, c)
 	; Read mapping data for this frame
-	ld a, [ANIMTABLE_REG]
-	ld MAPOFF_LO, a
-	inc ANIMTABLE_REG
-	ld a, [ANIMTABLE_REG]
-	ld MAPOFF_HI, a
+	ld a, [ANIMTABLE_reg]
+	ld MAPOFF_lo, a
+	inc ANIMTABLE_reg
+	ld a, [ANIMTABLE_reg]
+	ld MAPOFF_hi, a
 	; de free, bc = mapping offset
-	InvalidatePair ANIMTABLE
+	InvalidatePair(ANIMTABLE)
 
-	RegisterSingle LOOPCOUNT, d
+	RegisterSingle(LOOPCOUNT, d)
 	; Get number of sub-sprites
-	ld a, [MAPOFF_REG]
-	ld LOOPCOUNT, a ; D is loop counter
+	ld a, [MAPOFF_reg]
+	ld LOOPCOUNT_reg, a ; D is loop counter
 	inc bc
 
 .loop_subsprite:
 	; Okay now we can finally write our output to OAM
 	; Using E as temp
 
-	ld a, MAPOFF_REF ; Y (adjust with stashed)
+	ld a, MAPOFF_ref ; Y (adjust with stashed)
 	ld e, a
 	ldh a, [SpriteY]
 	add a, e
-	ld OAMBUFF_REF, a
-	inc OAMBUFF_LO
-	inc MAPOFF_REG
+	ld OAMBUFF_ref, a
+	inc OAMBUFF_lo
+	inc MAPOFF_reg
 
-	ld a, MAPOFF_REF ; X (adjust with stashed)
+	ld a, MAPOFF_ref ; X (adjust with stashed)
 	ld e, a
 	ldh a, [SpriteX]
 	add a, e
-	ld OAMBUFF_REF, a
-	inc OAMBUFF_LO
-	inc MAPOFF_REG
+	ld OAMBUFF_ref, a
+	inc OAMBUFF_lo
+	inc MAPOFF_reg
 
-	ld a, MAPOFF_REF ; Tile
-	ld OAMBUFF_REF, a
-	inc OAMBUFF_LO
-	inc MAPOFF_REG
+	ld a, MAPOFF_ref ; Tile
+	ld OAMBUFF_ref, a
+	inc OAMBUFF_lo
+	inc MAPOFF_reg
 
-	ld a, MAPOFF_REF ; Metadata
-	ld OAMBUFF_REF, a
-	inc OAMBUFF_LO
-	inc MAPOFF_REG
+	ld a, MAPOFF_ref ; Metadata
+	ld OAMBUFF_ref, a
+	inc OAMBUFF_lo
+	inc MAPOFF_reg
 
-	dec LOOPCOUNTER
+	dec LOOPCOUNT_reg
 	jr nz, .loop_subsprite
 .endloop_subsprite:
 
 	; And now get the next sprite
-	RegisterPair ANIMTABLE, b, c
-	pop ANIMTABLE_REG ; ( + 4 )
+	InvalidatePair(MAPOFF)
+	RegisterPair(ANIMTABLE, b, c)
+	pop ANIMTABLE_reg ; ( + 4 )
 	ldh a, [SpriteSize]
-	add a, ANIMTABLE_LO
-	ld ANIMTABLE_LO, a
+	add a, ANIMTABLE_lo
+	ld ANIMTABLE_lo, a
 	jr nc, .loop
-	inc ANIMTABLE_HI
+	inc ANIMTABLE_hi
 	jr .loop
 
 .endloop:
-LOOPCOUNT EQUS "INVALID"
-	MovePair OAMBUFF, d, e
-	RegisterPair CHAR, h, l
-	pop CHAR_REG ; Object input ( + 2 )
+	InvalidateSingle(LOOPCOUNT_reg)
+	MovePair(OAMBUFF, d, e)
+	RegisterPair(CHAR, h, l)
+	pop CHAR_reg ; Object input ( + 2 )
 
 	pop bc ; Discard OAM output ( + 0 )
 
+	InvalidatePair(ANIMTABLE)
+	InvalidatePair(CHAR)
+	InvalidatePair(OAMBUFF)
 ret
 
 ; Clobbers literally everything

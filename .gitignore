@@ -2,3 +2,5 @@ game.*
 **/*.bin
 rgbds/
 notes/
+bin/
+.vscode/*
