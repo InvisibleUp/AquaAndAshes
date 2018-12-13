@@ -86,7 +86,6 @@ TickObject_Animation:
 	; Restore HL to be object pointer (@ charAnim)
 	ld h, b
 	ld l, c
-	define(`CHAROFFSET', _get(`charStruct', `anim'))
 	; Store # of frames in B
 	inc de ; DE = # of frames
 	ld a, [de]
@@ -101,11 +100,13 @@ TickObject_Animation:
 	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animTimer'), h, l)
 	ld a, [hl]
 	or a
-	jr nz, .return ; Return if not time to animate
+	jr z, .noreturn ; Return if not time to animate
+	SeekStruct(CHAROFFSET, _get(`charStruct', `anim'), h, l)
+	jr .return
 
+.noreturn
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `anim'), h, l)
 	; Set hl to animation frame
-	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animFrame'), h, l)
-
 	; Check if we need to loop the animation
 	; (Check if current frame == number of frames)
 	ld a, b
@@ -113,7 +114,9 @@ TickObject_Animation:
 	jr z, .needsLoop
 	
 	; Increment animation frame, FFW hl, return
+	SeekStruct(CHAROFFSET, _get(`charStruct', `animFrame'), h, l)
 	inc [hl] ; @ charAnimFrame
+	SeekStruct(_get(`charStruct', `animFrame'), _get(`charStruct', `anim'), h, l)
 	jr .return
 
 .needsLoop
@@ -125,7 +128,6 @@ TickObject_Animation:
 
 	; Set animation to a
 	srl a ; This is equal to [de] & %01111111
-	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `anim'), h, l)
 	ld [hl], a 
 
 	; Set frame to 0
@@ -138,7 +140,10 @@ TickObject_Animation:
 
 .setFrame:
 	; Store animation frame into object RAM and return
+	SeekStruct(CHAROFFSET, _get(`charStruct', `animFrame'), h, l)
 	ld [hl], a
+	SeekStruct(_get(`charStruct', `animFrame'), _get(`charStruct', `animSpeed'), h, l)
+	ret
 
 .return
 	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animSpeed'), h, l)
