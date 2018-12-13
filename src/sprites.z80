@@ -40,7 +40,7 @@ ret
 ; de = output sprite location [input]
 ; hl = input object location [input]
 PrepareObject:
-CHAROFFSET = charInfo
+	define(`CHAROFFSET', _get(`charStruct', `start'))
 	; input
 	RegisterPair(CHAR, h, l)
 	RegisterPair(OAMBUFF, d, e)
@@ -54,30 +54,30 @@ CHAROFFSET = charInfo
 	ldh [SpriteAttribs], a
 
 	; Load Y into HiRAM
-	SeekStructAndSet CHAROFFSET, charY, CHAR_HI, CHAR_LO
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `y'), CHAR_hi, CHAR_lo)
 	ld a, CHAR_ref
 	ldh [SpriteY], a
 
 	; Calculate X and load into HiRAM
-	SeekStructAndSet CHAROFFSET, charX, CHAR_HI, CHAR_LO
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `x'), CHAR_hi, CHAR_lo)
 	call GetScreenX
 	add a, CHAR_ref
 	ldh [SpriteX], a
 
 	; Get animation frame and load into HiRAM 
 	; (going a bit out of order to save a register)
-	SeekStructAndSet CHAROFFSET, charAnimFrame, CHAR_HI, CHAR_LO
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animFrame'), CHAR_hi, CHAR_lo)
 	ld a, CHAR_ref ; @ charAnim
 	sla a ; Multiply by 2
 	ldh [SpriteFrame], a
 
 	; Get the animation number
-	SeekStructAndSet CHAROFFSET, charAnim, CHAR_HI, CHAR_LO
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `anim'), CHAR_hi, CHAR_lo)
 	ld a, CHAR_ref ; @ charAnim
 	sla a
 
 	; Set HL to next object and stash HL (it's now free!)
-	SeekStructAndSet CHAROFFSET, charNext, CHAR_HI, CHAR_LO
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `next'), CHAR_hi, CHAR_lo)
 	push CHAR_reg ; + 4
 	InvalidatePair(CHAR)
 
@@ -236,7 +236,7 @@ ret
 PrepareAllObjects:
 	ld d, HIGH(SpriteTable)
 	ld e, LOW(SpriteTable)
-	ld hl, charStruct
+	ld hl, charArray
 	
 	; We're going to need to keep bc on the stack...
 	ldh a, [ActiveObjectsCount]

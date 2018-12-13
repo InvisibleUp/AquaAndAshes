@@ -25,9 +25,9 @@ GenerateActiveObjectsBitfield:
 	ld c, a ; count
 
 	ld d, a ; For incrementing HL
-	ld e, charSizeOf
+	ld e, _get(`charStruct', `sizeof')
 
-	ld hl, charStruct ; Initial pointer
+	ld hl, charArray ; Initial pointer
 
 REPT 7
 	ld a, [hl] ; Get attributes
@@ -60,10 +60,10 @@ ret
 ; HL = pointer to beginning of given object
 ; Returned HL will be at charAnimSpeed
 TickObject_Animation:
-CHAROFFSET = charInfo
+	define(`CHAROFFSET', _get(`charStruct', `start'))
 
 	; Set HL to charAnim
-	SeekStructAndSet CHAROFFSET, charAnim, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `anim'), h, l)
 	; Set animation pointer to DE
 	ld de, animations_pointers_start
 	ld a, [hl] ; A = animation #
@@ -86,25 +86,26 @@ CHAROFFSET = charInfo
 	; Restore HL to be object pointer (@ charAnim)
 	ld h, b
 	ld l, c
-CHAROFFSET = charAnim
+	define(`CHAROFFSET', _get(`charStruct', `anim'))
 	; Store # of frames in B
 	inc de ; DE = # of frames
 	ld a, [de]
 	dec a ; Make zero-indexed
 	ld b, a
 	; Store current frame into C
-	SeekStructAndSet CHAROFFSET, charAnimFrame, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animFrame'), h, l)
 	ld a, [hl]
 	ld c, a
 
 	; Get animation timer (range from AnimSpeed to 0)
-	SeekStructAndSet CHAROFFSET, charAnimTimer, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animTimer'), h, l)
 	ld a, [hl]
 	or a
 	jr nz, .return ; Return if not time to animate
 
 	; Set hl to animation frame
-	SeekStructAndSet CHAROFFSET, charAnimFrame, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animFrame'), h, l)
+
 	; Check if we need to loop the animation
 	; (Check if current frame == number of frames)
 	ld a, b
@@ -124,7 +125,7 @@ CHAROFFSET = charAnim
 
 	; Set animation to a
 	srl a ; This is equal to [de] & %01111111
-	SeekStructAndSet CHAROFFSET, charAnim, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `anim'), h, l)
 	ld [hl], a 
 
 	; Set frame to 0
@@ -140,14 +141,14 @@ CHAROFFSET = charAnim
 	ld [hl], a
 
 .return
-	SeekStructAndSet CHAROFFSET, charAnimSpeed, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animSpeed'), h, l)
 ret
 
 TickObject_Timer:
-CHAROFFSET = charAnimSpeed
+	define(`CHAROFFSET', _get(`charStruct', `animSpeed'))
 	; Get animation speed and current timer value
 	ld a, [hl]
-	SeekStructAndSet CHAROFFSET, charAnimTimer, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animTimer'), h, l)
 	ld b, [hl]
 	; Check if speed == value
 	sub a, b
@@ -162,38 +163,34 @@ CHAROFFSET = charAnimSpeed
 	ld [hl], a
 .done:
 	; Set HL to next object attributes and return
-	SeekStructAndSet CHAROFFSET, charNext, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `next'), h, l)
 	ret
 
 ; Runs 1 frame of player physics
 ; HL = Player object pointer
 ; A, BC, DE are clobbered
 TickObject_Physics:
-CHAROFFSET = charInfo
+	define(`CHAROFFSET', _get(`charStruct', `start'))
 	push hl
 
 	; Get dX and dY
-	;ld de, (charDx)
-	;add hl, de ; @ charDx
-	SeekStructAndSet CHAROFFSET, charDx, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `dx'), h, l)
 	ld c, [hl] ; C = charDx
 	
-	;inc hl     ; @ charDx.2
-	;inc hl     ; @ charDy
-	SeekStructAndSet CHAROFFSET, charDy, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `dy'), h, l)
 	ld b, [hl]
 
 	; Move object pointer (hl) to Y
-	SeekStructAndSet CHAROFFSET, charY, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `y'), h, l)
 
 .addY:
 	; Add dY to Y
-	ld a, [hl]
-	add a, b
-	ld [hl], a
+	;ld a, [hl]
+	;add a, b
+	;ld [hl], a
 
 .addX
-	SeekStructAndSet CHAROFFSET, charX, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `x'), h, l)
 	push hl
 
 	; Sign-extend C (dX) into B
@@ -206,21 +203,20 @@ CHAROFFSET = charInfo
 
 	; Set HL to [DE]
 	pop de
-CHAROFFSET = charX
 	ld a, [de]
 	ld h, a
-	SeekStructAndSet CHAROFFSET, charX+1, d, e
+	inc de
 	ld a, [de]
 	ld l, a
+	dec de
 
 	; Add BC (dX) to HL
 	add hl, bc
 
 	; Write HL to [DE]
-	SeekStructAndSet CHAROFFSET, charX, d, e
 	ld a, h
 	ld [de], a
-	SeekStructAndSet CHAROFFSET, charX+1, d, e
+	inc de
 	ld a, l
 	ld [de], a
 
@@ -229,12 +225,12 @@ CHAROFFSET = charX
 	ret
 
 TickObject_PlayerInput:
-CHAROFFSET = charInfo
+	define(`CHAROFFSET', _get(`charStruct', `start'))
 	; FFW HL to dX
 	push hl
 	push hl ; need it twice
 
-	SeekStructAndSet CHAROFFSET, charDx, h, l
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `dx'), h, l)
 
 ; Move player left/right with keys
 ; We want to deaccelerate when:
@@ -456,7 +452,7 @@ ret
 
 ; Call TickObject for all objects
 TickAllObjects:
-	ld hl, charStruct
+	ld hl, charArray
 	; We're going to need to keep bc on the stack...
 	ldh a, [ActiveObjectsCount]
 	ld b, a
@@ -486,5 +482,5 @@ SampleObject:
 	DB 0 ; Frame
 	DB 5 ; Animation Speed
 	DB 0 ; Animation Timer
-	DB 0 ; Dx
-	DB 0 ; Dy
+	DB 0, 0 ; Dx
+	DB 0, 0 ; Dy

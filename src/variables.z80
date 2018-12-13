@@ -1,21 +1,21 @@
 ; OBJECT STRUCTURE
-RSRESET
+_set(`charStruct', `start', 0)       
 ; bit 7 = is active?
 ; bit 6 = team [Gecko = 0, Fox = 1]
 ; bit 5 = animal or football? [0 or 1]
 ; bit 4 = direction (1 = left, 0 = right)
 ; bit 3 = offense/defense? (for bit5 = 0)
-charInfo       RB 1
-charY          RB 2 ; Y position of object (8.8)
-charX          RB 3 ; X position of object (16.8 bits)
-charAnim       RB 1 ; Animation number
-charAnimFrame  RB 1 ; Frame # of animation
-charAnimSpeed  RB 1 ; Speed of animation
-charAnimTimer  RB 1 ; Timer to keep track of frame
-charDx         RB 2 ; Horizontal speed of object, signed (8.8)
-charDy         RB 2 ; Vertical speed of object, signed (8.8)
-charSizeOf     RB 0 ; Size of struct
-charNext       RB 0 ; Offset to next struct
+_set(`charStruct', `info', 0)       
+_set(`charStruct', `y', 1)           ; Y position of object (unsigned 8.8)
+_set(`charStruct', `x', 3)           ; X position of object (unsigned 16.8)
+_set(`charStruct', `anim', 6)        ; Animation number
+_set(`charStruct', `animFrame', 7)   ; Frame # of animation
+_set(`charStruct', `animSpeed', 8)   ; Speed of animation
+_set(`charStruct', `animTimer', 9)   ; Timer to keep track of frame
+_set(`charStruct', `dx', 10)         ; Horiz. speed (signed 8.8)
+_set(`charStruct', `dy', 12)         ; Vert. speed (signed 8.8)
+_set(`charStruct', `sizeof', 14)     ; Size of struct
+_set(`charStruct', `next', 14)       ; Offset to next struct
 
 FieldHeight EQU $60
 
@@ -51,8 +51,8 @@ StatXOff: ; Pointer to table
 
 ;SECTION "ObjectTable",WRAM0[$C100]
 ; Define (6 or 8?) objects
-charStruct:
-DS charSizeOf * 6
+charArray:
+DS _get(`charStruct', `sizeof') * 6
 charStruct_end:
 
 SECTION "SpriteTable",WRAMX[$DF00]

@@ -1,18 +1,19 @@
-include "src/variables.z80"
-include "src/hardware.inc" ; GB constants
-include "src/header.z80" ; ROM header
+include "src/macros.m4"      ; M4 Macros
+include "src/variables.z80"  ; Memory locations & structs
+include "src/hardware.inc"   ; GB constants
+include "src/header.z80"     ; ROM header
 
 ; Core Libraries
-include "src/memory.z80"
-include "src/display.z80"
-include "src/joypad.z80"
-include "src/math.z80"
+include "src/memory.z80"     ; Memory macros & routines
+include "src/display.z80"    ; PPU routines
+include "src/joypad.z80"     ; Joypad routine
+include "src/math.z80"       ; Math macros & routines
 
 ; Game stuff
-include "src/gfxinclude.z80"
-include "src/sprites.z80"
-include "src/background.z80"
-include "src/objects.z80"
+include "src/gfxinclude.z80" ; Graphics data
+include "src/sprites.z80"    ; Sprite routines
+include "src/background.z80" ; Background routines
+include "src/objects.z80"    ; Object/AI routines
 
 SECTION "main", ROM0
 ; Interrupt handlers
@@ -152,8 +153,8 @@ main:
     
     ; Init objects
     ld hl, SampleObject
-    ld de, charStruct
-    ld bc, charSizeOf
+    ld de, charArray
+    ld bc, _get(`charStruct', `sizeof')
     call memcpy
 
     ; Copy DMA code to WRAM

@@ -40,38 +40,36 @@ ret
 ; Macro for moving to a specific element
 ; No register use guarantee! (maybe except for A?)
 ; in a structure starting from a previous one
-; \1 = Source address
-; \2 = Dest address
-; \3 = High register to increment
-; \4 = Low register to increment
+; $1 = Source address
+; $2 = Dest address
+; $3 = High register to increment
+; $4 = Low register to increment
 ; TODO: Optimize for large distances
-SeekStruct: MACRO
-offset = \2 - \1
-PRINTT "src: "
-PRINTT "\1"
-PRINTT "\tdst: "
-PRINTT "\2"
-PRINTT "\toffset: "
-PRINTV offset
-PRINTT "\n"
-    
-IF offset > 0
-    .rept offset
-        inc \3\4
-    endr
-ELIF offset < 0
-    .rept offset
-        dec \3\4
-    endr
-ENDC
-ENDM
+define(`SeekStruct', `
+    define(`offset', eval(`$2 - $1'))
+    ; offset
+    ; > 0: eval(offset > 0)
+    ; < 0: eval(offset < 0)
+        
+    ifelse(eval(offset > 0), 1, `
+        rept offset
+            inc $3`'$4
+        endr
+    ')
+    ifelse(eval(offset < 0), 1, `
+        rept eval(0 - offset)
+            dec $3`'$4
+        endr
+    ')
 
-; Same as SeekStruct, except \1 is a SETable
-SeekStructAndSet: MACRO
-offset = \2 - \1
-\1 = \1 + offset
-    SeekStruct \1, \2, \3, \4
-ENDM
+    undefine(`offset')
+')
+
+; Same as `SeekStruct', except $1 is a SETable
+define(`SeekStructAndSet', `
+    SeekStruct($1, $2, $3, $4)
+    define(`$1', $2)
+')
 
 ; TODO: SeekStructAtHLWithLD(AndSet) 
 ; which is a terrible name for a macro that increments/
@@ -87,16 +85,15 @@ ENDM
 ; Defines names $1_hi, $1_lo, $1_reg, $1_ref
 ; Checks against variables $2.set, $3.set
 
-define(`echo', $1)
-
 define(`RegisterPair', `
-    ifdef(`$2_set', FAIL "$2 is already set!")
-    ifdef(`$3_set', FAIL "$3 is already set!")
+    ;PRINTT "$1 = $2`'$3\n"
+    ifdef(`$2_inuse', FAIL "$2 is already set!")
+    ifdef(`$3_inuse', FAIL "$3 is already set!")
 
-    define(`$2_set', 1)
-    define(`$3_set', 1)
+    define(`$2_inuse', 1)
+    define(`$3_inuse', 1)
 
-    define(`$1_set', 1)
+    define(`$1_inuse', 1)
     define(`$1_hi', $2)
     define(`$1_lo', $3)
     define(`$1_reg', $2`'$3)
@@ -106,13 +103,17 @@ define(`RegisterPair', `
 ; Marks a macro pair as invalid
 ; $1 = Prefix name, all caps
 define(`InvalidatePair', `
-    undefine(`$1_set')
-    undefine($1_hi`'_set)
+    ;PRINTT "$1 != $1_reg\n"
+    ;PRINTT "$1_lo`'_inuse\n"
+    ;PRINTT "a: a_inuse/b: b_inuse/c: c_inuse/d: d_inuse/e: e_inuse/h: h_inuse/l: l_inuse\n"
+    undefine(`$1_inuse')
+    undefine($1_hi`'_inuse)
     undefine(`$1_hi')
-    undefine($1_lo`'_set)
+    undefine($1_lo`'_inuse)
     undefine(`$1_lo')
     undefine(`$1_reg')
     undefine(`$1_ref')
+    ;PRINTT "a: a_inuse/b: b_inuse/c: c_inuse/d: d_inuse/e: e_inuse/h: h_inuse/l: l_inuse\n"
 ')
 
 ; Moves a pair to another set of registers, with contents
@@ -120,8 +121,9 @@ define(`InvalidatePair', `
 ; $2 = new pair lo
 ; $3 = new pair hi
 define(`MovePair', `
-    ifdef(`$2_set', FAIL "$2 is already set!")
-    ifdef(`$3_set', FAIL "$3 is already set!")
+    ;PRINTT "$1 ($1_reg) => $2`'$3\n"
+    ifdef(`$2_inuse', FAIL "$2 is already set!")
+    ifdef(`$3_inuse', FAIL "$3 is already set!")
 
     ld $2, $1_hi
     ld $3, $1_lo
@@ -134,29 +136,31 @@ define(`MovePair', `
 ; $1 = label name
 ; $2 = register
 define(`RegisterSingle', `
-    ifdef(`$2_set', FAIL "$2 is already set!")
+    ;PRINTT "$1 = $2\n"
+    ifdef(`$2_inuse', FAIL "$2 is already set!")
 
-    define(`$1_set', 1)
-    define(`$2_set', 1)
+    define(`$1_inuse', 1)
+    define(`$2_inuse', 1)
     define(`$1_reg', $2)
 ')
 
 ; Unregisters a single register
 ; $1 = label name
 define(`InvalidateSingle', `
-    undefine($1_reg`'_set)
+    ;PRINTT "$1 != $1_reg\n"
+    undefine($1_reg`'_inuse)
     undefine(`$1_reg')
-    undefine(`$1_set')
+    undefine(`$1_inuse')
 ')
 
-;TestFunction:
-;	RegisterPair(TMP1, b, c)
-;	RegisterPair(TMP2, d, e)
-;	RegisterPair(TMP3, h, l)
-;	InvalidatePair(TMP1)
-;	InvalidatePair(TMP2)
-;	RegisterPair(TMP1, d, e)
-;	MovePair(TMP3, b, c)
-;	InvalidatePair(TMP1)
-;	InvalidatePair(TMP3)
-;ret
+TestFunction:
+	RegisterPair(TMP1, b, c)
+	RegisterPair(TMP2, d, e)
+	RegisterPair(TMP3, h, l)
+	InvalidatePair(TMP1)
+	InvalidatePair(TMP2)
+	RegisterPair(TMP1, d, e)
+	MovePair(TMP3, b, c)
+	InvalidatePair(TMP1)
+	InvalidatePair(TMP3)
+ret
