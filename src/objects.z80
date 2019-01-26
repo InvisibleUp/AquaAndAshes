@@ -61,74 +61,84 @@ ret
 ; Returned HL will be at charAnimSpeed
 TickObject_Animation:
 	define(`CHAROFFSET', _get(`charStruct', `start'))
+	RegisterPair(CHARSTRUCT, h, l)
 
 	; Set HL to charAnim
-	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `anim'), h, l)
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `anim'), CHARSTRUCT_hi, CHARSTRUCT_lo)
 	; Set animation pointer to DE
-	ld de, animations_pointers_start
-	ld a, [hl] ; A = animation #
-	; Move HL (object struct) to stack
-	ld b, h
-	ld c, l
+	RegisterPair(ANIMBASE, d, e)
+	ld ANIMBASE_reg, animations_pointers_start
+	ld a, CHARSTRUCT_ref ; A = animation #
+	; Move HL (object struct) to BC
+	MovePair(CHARSTRUCT, b, c)
 
 	; HL = Animation frame *= 2
+	RegisterPair(ANIMOFF, h, l)
 	rla
-	ld h, 0
-	ld l, a
+	ld ANIMOFF_lo, 0
+	ld ANIMOFF_hi, a
 	; Animation pointer (=HL) to relevant animation
-	add hl, de
+	add ANIMOFF_reg, ANIMBASE_reg
+	InvalidatePair(ANIMBASE)
 
 	; Set DE=[HL] (animation data)
-	ld a, [hl+]
-	ld e, a
-	ld d, [hl]
+	RegisterPair(ANIMDATA, d, e)
+	ld a, [ANIMOFF_reg+]
+	ld ANIMDATA_lo, a
+	ld ANIMDATA_hi, [ANIMOFF_reg]
 
 	; Restore HL to be object pointer (@ charAnim)
-	ld h, b
-	ld l, c
+	InvalidatePair(ANIMOFF)
+	MovePair(CHARSTRUCT, h, l)
+
 	; Store # of frames in B
-	inc de ; DE = # of frames
-	ld a, [de]
+	RegisterSingle(FRAMEMAX, b)
+	inc ANIMDATA_reg ; DE = # of frames
+	ld a, ANIMDATA_ref
 	dec a ; Make zero-indexed
-	ld b, a
+	ld FRAMEMAX_reg, a
+
 	; Store current frame into C
-	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animFrame'), h, l)
-	ld a, [hl]
-	ld c, a
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animFrame'), CHARSTRUCT_hi, CHARSTRUCT_lo)
+	RegisterSingle(FRAMECURR, c)
+	ld a, CHARSTRUCT_ref
+	ld FRAMECURR_reg, a
 
 	; Get animation timer (range from AnimSpeed to 0)
-	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animTimer'), h, l)
-	ld a, [hl]
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animTimer'), CHARSTRUCT_hi, CHARSTRUCT_lo)
+	ld a, CHARSTRUCT_ref
 	or a
 	jr z, .noreturn ; Return if not time to animate
-	SeekStruct(CHAROFFSET, _get(`charStruct', `anim'), h, l)
+	SeekStruct(CHAROFFSET, _get(`charStruct', `anim'), CHARSTRUCT_hi, CHARSTRUCT_lo)
 	jr .return
 
 .noreturn
-	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `anim'), h, l)
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `anim'), CHARSTRUCT_hi, CHARSTRUCT_lo)
 	; Set hl to animation frame
 	; Check if we need to loop the animation
 	; (Check if current frame == number of frames)
-	ld a, b
-	sub a, c
+	ld a, FRAMEMAX_reg
+	sub a, FRAMECURR_reg
+	InvalidateSingle(`FRAMEMAX')
+	InvalidateSingle(`FRAMECURR')
 	jr z, .needsLoop
 	
 	; Increment animation frame, FFW hl, return
-	SeekStruct(CHAROFFSET, _get(`charStruct', `animFrame'), h, l)
-	inc [hl] ; @ charAnimFrame
-	SeekStruct(_get(`charStruct', `animFrame'), _get(`charStruct', `anim'), h, l)
+	SeekStruct(CHAROFFSET, _get(`charStruct', `animFrame'), CHARSTRUCT_hi, CHARSTRUCT_lo)
+	inc CHARSTRUCT_ref ; @ charAnimFrame
+	SeekStruct(_get(`charStruct', `animFrame'), _get(`charStruct', `anim'), CHARSTRUCT_hi, CHARSTRUCT_lo)
 	jr .return
 
 .needsLoop
 	; Check what action we need to do
-	inc de ; DE = Loop Action
-	ld a, [de]
+	inc ANIMDATA_reg ; DE = Loop Action
+	ld a, ANIMDATA_ref
 	rla ; Carry = action type
 	jr nc, .getFrame
 
 	; Set animation to a
 	srl a ; This is equal to [de] & %01111111
-	ld [hl], a 
+	ld CHARSTRUCT_ref, a 
 
 	; Set frame to 0
 	xor a
@@ -140,13 +150,15 @@ TickObject_Animation:
 
 .setFrame:
 	; Store animation frame into object RAM and return
-	SeekStruct(CHAROFFSET, _get(`charStruct', `animFrame'), h, l)
-	ld [hl], a
-	SeekStruct(_get(`charStruct', `animFrame'), _get(`charStruct', `animSpeed'), h, l)
+	SeekStruct(CHAROFFSET, _get(`charStruct', `animFrame'), CHARSTRUCT_hi, CHARSTRUCT_lo)
+	ld CHARSTRUCT_ref, a
+	SeekStruct(_get(`charStruct', `animFrame'), _get(`charStruct', `animSpeed'), CHARSTRUCT_hi, CHARSTRUCT_lo)
 	ret
 
 .return
-	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animSpeed'), h, l)
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `animSpeed'), CHARSTRUCT_hi, CHARSTRUCT_lo)
+	InvalidatePair(`CHARSTRUCT') ; hl
+	InvalidatePair(`ANIMDATA') ; de
 ret
 
 TickObject_Timer:
@@ -416,7 +428,7 @@ TickObject_Offense:
 	; A is garbage
 	jr nc, .enemyTeam
 	; Jump to player input routine
-	;jp TickObject_PlayerInput
+	jp TickObject_PlayerInput
 .enemyTeam
 ; Our turn?
 	; Check if (now) bit 7 of B = bit 7 of A
