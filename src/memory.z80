@@ -1,3 +1,4 @@
+SECTION "MEMORY",ROM0
 ; Fills a range in memory with a specified byte value.
 ; hl = destination address
 ; bc = byte count

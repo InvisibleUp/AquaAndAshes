@@ -34,14 +34,8 @@ vblank:
 reti
 
 lcdc:
-    push af
-    push hl
-
-    ld hl, StatJmpLoc
-    ld a, [hl+]
-    ld l, [hl]
-    ld h, a
-    jp hl ; This better be valid...
+    ; Scanline interrupt. Redirects to some pointer.
+    jp StatJmpLoc
 
 clearRAM:
    ; Clear RAM and VRAM
@@ -67,31 +61,58 @@ clearRAM:
 
     ret
 
-LoadGFX:
+Inviz_LoadGFX:
+    di
+    WaitForVBlank
+    ei
     call DisableLCD
-
-    ; Set palette
-    ld a, %11100100
-    ld [rBGP], a
-    ld [rOBP0], a
-    ; Light palette
-    rlca
-    rlca
-    ld [rOBP1], a
 
     ; Set scroll position
     xor a
     ld [rSCX], a
     ld [rSCY], a
 
-    ; Clear RAM
-    call clearRAM
-
-    ; Copy DMA code to WRAM
-    ld hl, SpriteDMA
-    ld de, $FF80
-    ld bc, SpriteDMA_End - SpriteDMA
+    ; Load tile data
+    ld hl, invizsplash_tile_data
+    ld de, $9010
+    ld bc, invizsplash_tile_size
     call memcpy
+
+    ; Load map data
+    ld de, invizsplash_map_data
+    ld hl, _SCRN0
+    ld b, invizsplash_map_width
+    ld c, invizsplash_map_height
+
+.copyloop
+    ld a, [de]
+    inc de
+    ld [hl+], a
+    dec b
+    jp nz, .copyloop
+
+    ld a, c
+    ld bc, (32 - invizsplash_map_width)
+    add hl, bc
+    ld b, invizsplash_map_width
+    ld c, a
+
+    dec c
+    jp nz, .copyloop
+
+    call EnableLCD
+    ret
+
+Game_LoadGFX:
+    di
+    WaitForVBlank
+    ei
+    call DisableLCD
+
+    ; Set scroll position
+    xor a
+    ld [rSCX], a
+    ld [rSCY], a
 
     ; Load graphics
     ld hl, gfx_start
@@ -133,23 +154,74 @@ LoadGFX:
 ;    ld [hl+], a
 ;    ld [hl+], a
 
-    call InitDisplay
+    call EnableLCD
+
 ret
 
-; Main Loop
-main:
-    ; Set stack to top of WRAM
-    ; (yes, this odd address kills me inside)
-    ld sp, $DFFF
+Game_InitParallax:
+    ; Set parallax interrupt
+    ld a, $C3
+    ld [StatJmpLoc], a
+    ld hl, scrollLayer
+	ld a, l
+	ld [StatJmpLoc+1], a
+	ld a, h
+	ld [StatJmpLoc+2], a
 
-    ; Set interrupts and timers
-    xor a
-    ldh [rIF], a
-    ld a, IEF_VBLANK | IEF_LCDC
-    ldh [rIE], a
+    ; Clear parallax buffer
+    xor a    
+    ld hl, ScanlineBuffer
+    ld bc, 144
+    call memset
 
-    ; Init PPU
-    call LoadGFX
+    ; Set parallax next-line data
+    ld a, 35
+    ld [ScanlineBuffer + 1], a
+
+	ld a, 73
+	ld [ScanlineBuffer + (35 - MinScanline) * 2 + 1], a
+
+	ld a, 114
+	ld [ScanlineBuffer + (73 - MinScanline) * 2 + 1], a
+
+	ld a, MinScanline
+	ld [ScanlineBuffer + (114 - MinScanline) * 2 + 1], a
+
+    ld a, MinScanline
+    ldh [rLYC], a
+
+    ret
+
+Game_ParallaxTick:
+    ; Set parallax data
+	ld a, [ParallaxLayer1]
+	ld [ScanlineBuffer + (35 - MinScanline) * 2], a
+
+	ld a, [ParallaxLayer2]
+	ld [ScanlineBuffer + (73 - MinScanline) * 2], a
+
+	ld a, [ParallaxLayer3]
+	ld [ScanlineBuffer + (114 - MinScanline) * 2], a
+
+    ret
+
+; Inviz splash screen loop
+InvizLoop:
+    call Inviz_LoadGFX
+    ld b, $FF
+
+.inviz_loop:
+    di
+    WaitForVBlank
+    ei
+    dec b 
+    jp nz, .inviz_loop
+
+    ret
+
+GameLoop:
+    ; Load in-game GFX
+    call Game_LoadGFX
     
     ; Init objects
     ld hl, SampleObject
@@ -157,36 +229,23 @@ main:
     ld bc, _get(`charStruct', `sizeof')
     call memcpy
 
-    ; Copy DMA code to WRAM
-    ld hl, SpriteDMA
-    ld de, $FF80
-    ld bc, SpriteDMA_End - SpriteDMA
-    call memcpy
-
     ; Testing stuff
     ld a, $C0
     ld [TurnInfo], a
 
-    ; Set parallax interrupt
-    ld hl, scrollLayer
-	ld a, h
-	ld [StatJmpLoc], a
-	ld a, l
-	ld [StatJmpLoc+1], a
-
-    ; Set parallax data pointers
-    call initScrollLayer
+    call Game_InitParallax
 
     ; Turn on parallax stuff now that it's safe-ish
     ld a, STATF_LYC
     ldh [rSTAT], a 
 
-    WaitForVBlank
+    call EnableLCD
     ei
 
 .loop:
     ; Get frame data ready
     call resetScrollLayer
+    call Game_ParallaxTick
     call GenerateActiveObjectsBitfield 
     call readJoypad
 
@@ -202,6 +261,8 @@ main:
     ld hl, GlobalTimer
     inc [hl]
 
+    ; Wait for VBlank before looping
+    ; TODO: Create an exit condition
     ; Wait for VBlank
     xor a
     ld [WaitingForVBlank], a
@@ -212,4 +273,45 @@ main:
     jr z, .VBlankWait
 
     jr .loop
+
+; Main Loop
+main:
+    ; Set stack to top of WRAM
+    ; (yes, this odd address kills me inside)
+    ld sp, $DFFF
+
+    ; Set interrupts and timers
+    xor a
+    ldh [rIF], a
+    ld a, IEF_VBLANK | IEF_LCDC
+    ldh [rIE], a
+
+    ; Disable LCD
+    di
+    WaitForVBlank
+    ei
+    call DisableLCD
+
+    ; Set palette
+    ld a, %11100100
+    ld [rBGP], a
+    ld [rOBP0], a
+    ; Light palette
+    rlca
+    rlca
+    ld [rOBP1], a
+  
+    ; Clear RAM
+    call clearRAM
+
+    ; Copy DMA code to WRAM
+    ld hl, SpriteDMA
+    ld de, $FF80
+    ld bc, SpriteDMA_End - SpriteDMA
+    call memcpy
+
+    call InitDisplay
+    call InvizLoop
+    call GameLoop
+
 ; End Main

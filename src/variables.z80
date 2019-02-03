@@ -42,18 +42,19 @@ ParallaxLayer2: ; Dirt -> grass
 ParallaxLayer3: ; Grass -> bottom
 	DS 1
 
-StatJmpLoc: ; Pointer to routine to use
-	DS 2
-StatNextLineOff: ; Pointer to table
-	DS 2
-StatXOff: ; Pointer to table
-	DS 2
+StatJmpLoc: ; JP opcode to routine to use
+	DS 3
 
 ;SECTION "ObjectTable",WRAM0[$C100]
 ; Define (6 or 8?) objects
 charArray:
 DS _get(`charStruct', `sizeof') * 6
 charStruct_end:
+
+SECTION "ScanlineBuffer",WRAMX[$DE00]
+MinScanline EQU 16
+ScanlineBuffer:
+	DS (144 - MinScanline) * 2
 
 SECTION "SpriteTable",WRAMX[$DF00]
 SpriteTable:

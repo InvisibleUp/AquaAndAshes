@@ -1,3 +1,5 @@
+SECTION "MATH",ROM0
+
 ; http://map.grauw.nl/articles/mult_div_shifts.php
 
 ;Multiply 8-bit values

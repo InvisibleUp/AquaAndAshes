@@ -1,3 +1,4 @@
+SECTION "OBJECTS",ROM0
 ; Physics acceleration tables and stuff
 MAXDX EQU 3
 MAXDY EQU -4

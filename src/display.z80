@@ -1,10 +1,11 @@
+SECTION "DISPLAY",ROM0
 ;; Macros
 WaitForVBlank: MACRO
 	ld   hl,rIF                         ; Load interrupt flag byte into HL
-.wait	ld   a, IEF_VBLANK
+.wait\@	ld   a, IEF_VBLANK
 	halt                                ; suspend CPU - wait for ANY interrupt
 	and a, [hl]                         ; VBlank interrupt flag on?
-	jr   z, .wait                       ; wait more if zero
+	jr   z, .wait\@                     ; wait more if zero
 	ld   a, IEF_VBLANK
 	cpl
 	and a, [hl]                         ; set vblank_flag back to zero

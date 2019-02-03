@@ -1,3 +1,4 @@
+SECTION "JOYPAD",ROM0
 
 readJoypad:
     ; Stash old buttons

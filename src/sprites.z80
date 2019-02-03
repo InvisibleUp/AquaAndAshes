@@ -1,3 +1,4 @@
+SECTION "SPRITES",ROM0
 ; hl = object RAM pointer
 ; uses A register as scratch
 ; uses D register for temp storage

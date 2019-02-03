@@ -71,75 +71,36 @@ decFieldX:
 .return:
 	ret	
 
-; LCD STAT interupt routine
+; LCD STAT interupt routine for parallax scrolling
 scrollLayer:
-	; Set next HBLANK interrupt
-	ld hl, StatNextLineOff
+	push af
 
-	; Load table offset into DE
-	ld a, [hl+] 
-	ld d, a
-	ld e, [hl] ; HL points to StatXOff
-	inc hl
+	; Set scroll position from current scanline
+	ld a, [rLY]
+	sub a, MinScanline ; No scanline effects before minimum (to save RAM)
+	jr c, .exit 
 
-	; Set next interrupt scanline
-	ld a, [de]
-	ldh [rLYC], a
+	rla ; Double A (we know carry is 0!)
 
-	; Store incremented pointer
-	inc de
-	ld a, d
-	ld [StatNextLineOff], a
-	ld a, e
-	ld [StatNextLineOff+1], a
-
-	; Set scroll position
-	ld a, [hl+] 
-	ld d, a
-	ld e, [hl]
-
-	ld a, [de]
+	push hl
+	ld hl, ScanlineBuffer
+	add a, l
+	ld l, a
+	ld a, [hl+]	; Increment HL to next line pointer
 	ldh [rSCX], a
 
-	inc de
-	ld a, d
-	ld [StatXOff], a
-	ld a, e
-	ld [StatXOff+1], a
-
+	; Set next scanline
+	ld a, [hl]
+	ldh [rLYC], a
 	pop hl
+
+.exit:
 	pop af
 	reti
 
 ; Call this after every VBlank
 resetScrollLayer:
-	; Reset scroll register
-;	ld hl, ParallaxLayer1
-;	ld a, [hl]
 	xor a
 	ldh [rSCX], a
 
-initScrollLayer:
-
-	; Next line table
-	ld hl, scrolltables_standard_lines
-
-	; Reset LYC register
-	ld a, [hl]
-	ldh [rLYC], a
-
-	; Increment LYC pointer to next entry
-	inc hl
-	ld a, h
-	ld [StatNextLineOff], a
-	ld a, l
-	ld [StatNextLineOff+1], a
-
-	; X offsets
-	ld hl, ParallaxLayer1
-	ld a, h
-	ld [StatXOff], a
-	ld a, l
-	ld [StatXOff+1], a
-
-ret
+	ret

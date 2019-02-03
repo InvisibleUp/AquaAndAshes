@@ -1,7 +1,11 @@
 ; GRAPHICS DATA
 SECTION "GFX",ROMX,BANK[1]
-gfx_start:
 
+splash_start:
+splash_inviz:
+    include "gfx/invizsplash.inc"
+
+gfx_start:
 gfx_arcticfox_standing:
 arcticfox_standing_tile EQU 0
     incbin "gfx/bin/arcticfox-standing.png.bin"
@@ -200,16 +204,3 @@ font:
     incbin "gfx/bin/8x8font.png.bin"
     incbin "gfx/bin/8x8numbers.png.bin"
 font_end:
-
-scrolltables:
-
-scrolltables_standard:
-scrolltables_standard_lines:
-    DB 35, 73, 114, 0
-scrolltables_standard_xoff:
-    ; from RAM
-scrolltables_standard_end:
-
-scrolltables_end:
-
-SECTION "ENDGFX",ROM0
