@@ -9,8 +9,8 @@ GetScreenX:
 	; Load FieldX into hl
 	ld hl, FieldX
 	ld a, [hl+]
-	ld l, [hl]
-	ld h, a
+	ld h, [hl]
+	ld l, a
 
 	; Divide by 2 so that it lines up with path scrolling
 	srl h ; Store bit 0 into carry
@@ -27,7 +27,7 @@ GetScreenX:
 	ld e, a
 
 	; ObjX - FieldX (as -FieldX + ObjX)
-	;NegateHL
+	NegateHL
 	add hl, de
 
 	; Get low byte and exit
@@ -219,7 +219,7 @@ PrepareObject:
 	jr .loop
 
 .endloop:
-	InvalidateSingle(LOOPCOUNT_reg)
+	InvalidateSingle(LOOPCOUNT)
 	MovePair(OAMBUFF, d, e)
 	RegisterPair(CHAR, h, l)
 	pop CHAR_reg ; Object input ( + 2 )

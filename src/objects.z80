@@ -1,20 +1,23 @@
 SECTION "OBJECTS",ROM0
-; Physics acceleration tables and stuff
-MAXDX EQU 3
-MAXDY EQU -4
 
-; Number of frames button must be held for to accelerate
-; Uses absolute value
-AccelTable:
-	DB 4 ; DX = 0
-	DB 16 ; DX = 1
-	DB 64 ; DX = 2
-	DB 90 ; DX = 3
-DeaccelTable:
-	DB 32  ; DX = 0
-	DB 16  ; DX = 1
-	DB 8  ; DX = 2
-	DB 4  ; DX = 3
+; Physics acceleration tables and stuff
+AccelTable_Size EQU 7
+AccelTable_Right:
+	DB $00, $10
+	DB $00, $20
+	DB $00, $40
+	DB $00, $80
+	DB $01, $00
+	DB $02, $00
+	DB $04, $00
+AccelTable_Left:
+	DB $FF, $F0
+	DB $FF, $E0
+	DB $FF, $C0
+	DB $FF, $80
+	DB $FF, $00
+	DB $FE, $00
+	DB $FC, $00
 
 ; Create bitfield in a containing a list of active objects.
 ; This is clever because you can rr x; jr nc to skip easily.
@@ -188,67 +191,68 @@ TickObject_Timer:
 ; HL = Player object pointer
 ; A, BC, DE are clobbered
 TickObject_Physics:
+	RegisterPair(CHAR, h, l)
 	define(`CHAROFFSET', _get(`charStruct', `start'))
-	push hl
+	push CHAR_reg
 
 	; Get dX and dY
-	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `dx'), h, l)
-	ld c, [hl] ; C = charDx
+	RegisterPair(dX, d, e)
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `dx'), CHAR_hi, CHAR_lo)
+	;ld dX_reg, CHAR_ref 
+	ld dX_lo, CHAR_ref
+	inc CHAR_reg
+	ld dX_hi, CHAR_ref
+	dec CHAR_reg
 	
-	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `dy'), h, l)
-	ld b, [hl]
+	RegisterSingle(dY, c)
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `dy'), CHAR_hi, CHAR_lo)
+	ld dY_reg, CHAR_ref
 
-	; Move object pointer (hl) to Y
-	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `y'), h, l)
+.addX:
+	; This is funky, because we're adding a 16-bit number to a 24-bit
+	; number on an 8-bit processor. As such we're ignoring the macro varnames
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `x'), CHAR_hi, CHAR_lo)
+	inc CHAR_reg
+	; Load current 8.8 into new HL (hl is character offset pair)
+	ld a, [CHAR_reg+]
+	ld b, [CHAR_reg]
+	push CHAR_reg
+	ld h, a
+	ld l, b
+	; Do a 16 bit of de and hl, move hl to de
+	xor a
+	add hl, dX_reg
+	ld d, h
+	ld e, l
+	; restore char offset, move new de to [hl], carry adjust
+	pop hl
+	ld [hl], e
+	dec hl
+	ld [hl], d
+	dec hl
+	adc [hl]
+
+	InvalidatePair(`dX')
 
 .addY:
+	; Move object pointer (hl) to Y
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `y'), CHAR_hi, CHAR_lo)
+
 	; Add dY to Y
-	;ld a, [hl]
-	;add a, b
-	;ld [hl], a
+	ld a, CHAR_ref
+	add a, dY_reg
+	ld CHAR_ref, a
+	InvalidateSingle(`dY')
 
-.addX
-	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `x'), h, l)
-	push hl
-
-	; Sign-extend C (dX) into B
-	ld a, c
-	rla
-	ld a, 0
-	ld b, 0
-	sbc b
-	ld b, a
-
-	; Set HL to [DE]
-	pop de
-	ld a, [de]
-	ld h, a
-	inc de
-	ld a, [de]
-	ld l, a
-	dec de
-
-	; Add BC (dX) to HL
-	add hl, bc
-
-	; Write HL to [DE]
-	ld a, h
-	ld [de], a
-	inc de
-	ld a, l
-	ld [de], a
-
-	; Rewind and exit
-	pop hl
+	; Rewind stack and exit
+	pop CHAR_reg
+	InvalidatePair(`CHAR')
 	ret
 
 TickObject_PlayerInput:
 	define(`CHAROFFSET', _get(`charStruct', `start'))
-	; FFW HL to dX
-	push hl
-	push hl ; need it twice
-
-	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `dx'), h, l)
+	RegisterPair(`CHAR', h, l)
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `dx'), CHAR_hi, CHAR_lo)
 
 ; Move player left/right with keys
 ; We want to deaccelerate when:
@@ -259,155 +263,75 @@ TickObject_PlayerInput:
 ;	- Player is trying to go same as DX
 
 	; Are we pressing any buttons?
+	RegisterSingle(`JPDirBtns', b)
 	ldh a, [JoypadButtons]
-	ld b, a ; B = Joypad buttons
 	and a, PADF_RIGHT | PADF_LEFT
-	jr z, .doDeaccel ; Nothing is pressed
+	jr z, .return ; No direction is pressed
+	ld JPDirBtns_reg, a
 
-	ld c, a ; C = left/right this frame
+	RegisterPair(`dX', d, e)
+	ld dX_hi, CHAR_ref
+	inc CHAR_reg
+	ld dX_lo, CHAR_ref
+	dec CHAR_reg
 
-	ld a, [hl] ; Load DX into a
-	or a ; Have we JUST started moving?
-	;or c
-	jr z, .doAccel ; If so, accelerate
-	
-	; Are we pressing the opposite direction as dX?
-	; TODO: Condense this a bit
+	RegisterSingle(`AccelLoop', c)
+	ld AccelLoop_reg, AccelTable_Size
+	push CHAR_reg
+	InvalidatePair(`CHAR')
 
-	bit 7, [hl]
-	jr z, .checkRight
+	MovePair(`dX', h, l)
+	RegisterPair(`ACCEL', d, e)
+	ld ACCEL_reg, AccelTable_Right
+	bit PADB_LEFT, JPDirBtns_reg
+	jp z, .skipAccelLeft
+	ld ACCEL_reg, AccelTable_Left
+.skipAccelLeft:
 
-.checkLeft: ; Moving left
-	ld a, c
-	and a, PADF_RIGHT
-	jr z, .doAccel ; Accelerate
-	jr .doDeaccel
+.accelLoop:
+	push dX_reg
+	push bc
 
-.checkRight:
-	ld a, c
-	and a, PADF_LEFT
-	jr z, .doAccel ; Accelerate
+	; Test if new speed is higher than old speed
+	ld a, ACCEL_ref
+	ld b, a
+	inc ACCEL_reg
+	ld a, ACCEL_ref
+	ld c, a
+	inc ACCEL_reg
 
-.doDeaccel
-	; Round towards zero
-	; B is free here
+	NegateHL
+	add dX_reg, bc
+	jp c, .accelLoop_continue
 
-	; Are we already stopped?
-	ld b, [hl]
-	ld a, b
-	or a
-	jr z, .noAccel
+	; This acceleration is higher, so it's the new one
+	ld dX_hi, b
+	ld dX_lo, c
+	pop bc
+	add sp, 2
+	ld c, 1
+	jp .accelLoop_end
 
-	sla b ; CF = sign (if negative, = 1)
-	; D U L R X X X X
-	; We're going to shift 1 left if carry flag is off.
-	ld b, 1
-	jr c, .noShift
-	sla b
-.noShift:
-	swap b ; And this is our fake joystick input
-	ld a, [hl]
-	AbsA
-	push hl
-	ld hl, DeaccelTable ; With our deacceleration table
-	jr .addSpeedToTable
+.accelLoop_continue
+	pop bc
+	pop dX_reg
+.accelLoop_end
+	dec AccelLoop_reg
+	jp nz, .accelLoop
 
-.doAccel:
-	; Only allow this every nth frame depending on lookup table
-	ld a, [hl]
-	AbsA
-	push hl
-	ld hl, AccelTable
-.addSpeedToTable:
-	add a, l
-	ld l, a
-	jr nc, .nocarry
-	inc h
-.nocarry:
-	ld a, [DirButtonStreak]
-	sub a, [hl]
-	pop hl
-	jr c, .noAccel
+	InvalidatePair(`ACCEL')
+	MovePair(`dX', d, e)
+	RegisterPair(`CHAR', h, l)
+	pop CHAR_reg
+	ld CHAR_ref, dX_lo
+	inc CHAR_reg
+	ld CHAR_ref, dX_hi
+	dec CHAR_reg
 
-	; Test buttons
-	bit PADB_LEFT, b
-	jr z, .notLeft
-
-	dec [hl]
-	jr .notRight
-.notLeft:
-	bit PADB_RIGHT, b
-	jr z, .notRight
-
-	inc [hl]
-.notRight
-
-; Cap dX
-	ld a, [hl]
-	AbsA
-	sub a, MAXDX
-	jr c, .skipCap
-	jr z, .skipCap
-	
-	bit 7, [hl]
-	jr z, .capPos
-	inc [hl]
-	jr .skipCap
-.capPos:
-	dec [hl]
-.skipCap:
-.noAccel:
-
-	jr .noJump ; DEBUG: Skip this for now
-
-; HL @ DX
-; Handle jumping if A button is pressed
-.checkJump:
-	ldh a, [JoypadButtons]
-	and a, PADF_A
-	jr z, .noJump ; Nothing is pressed
-
-	; Rewind HL to Y and load into D
-	inc hl ; @ CharDy
-	ld b, h
-	ld c, l
-	pop hl ; @ CharInfo
-	inc hl ; @ CharY
-	ld d, [hl]
-
-	; FFW HL back to DY
-	ld h, b
-	ld l, c
-
-	; Load JumpButtonStreak into E
-	ld a, [JumpButtonStreak]
-	ld e, a
-
-	; If Y != floor level and JumpButtonStreak == 0, return
-	ld a, FieldHeight
-	sub a, d ; D is free
-	jr z, .checkJumpStreak ; JR if Y == floor level
-	
-	ld a, b
-	or a
-	jr nz, .noJump
-.checkJumpStreak:
-	; If JumpButtonStreak > 16, return
-	ld a, e
-	sub a, 17
-	jr nc, .noJump
-
-.doJump:
-	; If streak % 8 != 0, skip jump
-	ld a, e
-	and a, %1111
-	jr nz, .noJump
-	; Decrement DY
-	dec [hl]
-
-; Restore HL and return
-.noJump:
-	pop hl
+	InvalidateSingle(`JPDirBtns')
+.return
+	SeekStructAndSet(`CHAROFFSET', _get(`charStruct', `start'), CHAR_hi, CHAR_lo)
+	InvalidatePair(`CHAR')
 	ret
 
 TickObject_AI_Offense:
@@ -494,11 +418,11 @@ TickAllObjects:
 ; Just the definition for a sample object
 SampleObject:
 	DB %11010000 ; charInfo (snowfox, left)
-	DB FieldHeight, $00
+	DB FieldHeight, $00 ; Y
 	DB $00, $80, $00 ; X
 	DB 0 ; Animation
 	DB 0 ; Frame
 	DB 5 ; Animation Speed
 	DB 0 ; Animation Timer
-	DB 0, 0 ; Dx
+	DB 1, 0 ; Dx
 	DB 0, 0 ; Dy

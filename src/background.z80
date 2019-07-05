@@ -3,12 +3,12 @@
 incFieldX:
 	ld hl, FieldX
 	ld a, [hl+]
-	ld d, a
-	ld e, [hl]
-	dec de
-	ld a, e
-	ld [hl-], a
+	ld e, a
+	ld d, [hl]
+	inc de
 	ld a, d
+	ld [hl-], a
+	ld a, e
 	ld [hl], a
 
 	ld a, [GlobalTimer]
