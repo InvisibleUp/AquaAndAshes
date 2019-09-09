@@ -1,9 +1,11 @@
+; Defines
 include "src/macros.m4"      ; M4 Macros
 include "src/variables.z80"  ; Memory locations & structs
 include "src/hardware.inc"   ; GB constants
 include "src/header.z80"     ; ROM header
 
 ; Core Libraries
+include "src/interrupt.z80"  ; Interrupt service routines
 include "src/memory.z80"     ; Memory macros & routines
 include "src/display.z80"    ; PPU routines
 include "src/joypad.z80"     ; Joypad routine
@@ -17,25 +19,6 @@ include "src/objects.z80"    ; Object/AI routines
 
 SECTION "main", ROM0
 ; Interrupt handlers
-vblank:
-    ; Jumping here clears vblank flag automatically
-    push af
-    ld a, [WaitingForVBlank]
-    jr nz, .return ; Lag!
-
-    call $FF80 ; Update sprites
-    
-    ; Finish
-    ld a, 1
-    ld [WaitingForVBlank], a
-
-.return:
-    pop af
-reti
-
-lcdc:
-    ; Scanline interrupt. Redirects to some pointer.
-    jp StatJmpLoc
 
 clearRAM:
    ; Clear RAM and VRAM
@@ -158,50 +141,31 @@ Game_LoadGFX:
 
 ret
 
+DefaultParallaxLCDC:
+    DB LCDC_CMD_SCROLL_ABS, 35, 0                    ; Grass -> dirt
+    DB LCDC_CMD_SCROLL_ABS, 73, 0                    ; Dirt -> grass
+    DB LCDC_CMD_SCROLL_ABS, 114, 0                   ; Grass -> bottom
+    DB LCDC_CMD_SEEK, 115, LOW(ParallaxLCDC_Cmd1)    ; Reset
+
 Game_InitParallax:
-    ; Set parallax interrupt
-    ld a, $C3
-    ld [StatJmpLoc], a
-    ld hl, scrollLayer
-	ld a, l
-	ld [StatJmpLoc+1], a
-	ld a, h
-	ld [StatJmpLoc+2], a
-
     ; Clear parallax buffer
-    xor a    
-    ld hl, ScanlineBuffer
-    ld bc, 144
-    call memset
+    ld de, ParallaxLCDC_Cmd1
+    ld hl, DefaultParallaxLCDC
+    ld bc, (Game_InitParallax - DefaultParallaxLCDC)
+    call memcpy
 
-    ; Set parallax next-line data
-    ld a, 35
-    ld [ScanlineBuffer + 1], a
+    ; Init first arg
+	ld a, LCDC_CMD_SCROLL_ABS
+	ldh [NextScanlineAction], a
+	ld a, 35
+	ldh [rLYC], a
+	xor a
+	ldh [NextScanlineArg], a
 
-	ld a, 73
-	ld [ScanlineBuffer + (35 - MinScanline) * 2 + 1], a
-
-	ld a, 114
-	ld [ScanlineBuffer + (73 - MinScanline) * 2 + 1], a
-
-	ld a, MinScanline
-	ld [ScanlineBuffer + (114 - MinScanline) * 2 + 1], a
-
-    ld a, MinScanline
-    ldh [rLYC], a
-
-    ret
-
-Game_ParallaxTick:
-    ; Set parallax data
-	ld a, [ParallaxLayer1]
-	ld [ScanlineBuffer + (35 - MinScanline) * 2], a
-
-	ld a, [ParallaxLayer2]
-	ld [ScanlineBuffer + (73 - MinScanline) * 2], a
-
-	ld a, [ParallaxLayer3]
-	ld [ScanlineBuffer + (114 - MinScanline) * 2], a
+    ld a, HIGH(ParallaxLCDC_Cmd1)
+    ldh [ScanlineEffectsPointer], a
+    ld a, LOW(ParallaxLCDC_Cmd1)
+    ldh [ScanlineEffectsPointer+1], a
 
     ret
 
@@ -243,9 +207,11 @@ GameLoop:
     ei
 
 .loop:
+    ; Reset scroll layer
+	xor a
+	ldh [rSCX], a
+
     ; Get frame data ready
-    call resetScrollLayer
-    call Game_ParallaxTick
     call GenerateActiveObjectsBitfield 
     call readJoypad
 
@@ -254,12 +220,14 @@ GameLoop:
 
     ; Prepare graphics data
     ;call MoveFieldX
-    call incFieldX
+    ld c, 1
+    call updateFieldX
     call PrepareAllObjects
 
     ; Tick global timer
-    ld hl, GlobalTimer
-    inc [hl]
+    ldh a, [GlobalTimer]
+    inc a
+    ldh [GlobalTimer], a
 
     ; Wait for VBlank before looping
     ; TODO: Create an exit condition
@@ -311,7 +279,7 @@ main:
     call memcpy
 
     call InitDisplay
-    call InvizLoop
+    ;call InvizLoop
     call GameLoop
 
 ; End Main

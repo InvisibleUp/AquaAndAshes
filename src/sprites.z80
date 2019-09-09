@@ -260,10 +260,11 @@ PrepareAllObjects:
 ; Don't call directly!
 SpriteDMA:
 	ld a, SpriteTable / $100
-	ldh [$FF46], a ;start DMA transfer (starts right after instruction)
-	ld  a, $28     ;delay...
-.wait:                 ;total 5x40 cycles, approx 200ms
-	dec a          ;1 cycle
-	jr  nz, .wait  ;4 cycles
+	ldh [$FF46], a ; start DMA transfer (starts right after instruction)
+	ld  a, $28     ; delay...
+.wait:                 ; total 5x40 cycles, approx 200ms
+	dec a          ; 1 cycle
+	jr  nz, .wait  ; 4 cycles
 	ret
 SpriteDMA_End:
+	nop            ; padding so BGB picks up next function label

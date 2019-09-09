@@ -21,28 +21,21 @@ FieldHeight EQU $60
 
 SECTION "Variables",WRAM0[$C000]
 WramStart:
-GlobalTimer:
-	DS 1
-WaitingForVBlank: ; 0 = waiting, 1 = busy
-	DS 1
 
-LastButtons:
-	DS 1
-DirButtonStreak: ; Capped at 255
-	DS 1
-JumpButtonStreak:
-	DS 1
-
-FieldX:
+; Scanline cmd/arg buffer for parallax scrolling
+ParallaxLCDC_Cmd1:
 	DS 2
 ParallaxLayer1: ; Grass -> dirt
 	DS 1
+ParallaxLCDC_Cmd2:
+	DS 2
 ParallaxLayer2: ; Dirt -> grass
 	DS 1
+ParallaxLCDC_Cmd3:
+	DS 2
 ParallaxLayer3: ; Grass -> bottom
 	DS 1
-
-StatJmpLoc: ; JP opcode to routine to use
+ParallaxLCDC_CmdReset:
 	DS 3
 
 ;SECTION "ObjectTable",WRAM0[$C100]
@@ -51,10 +44,6 @@ charArray:
 DS _get(`charStruct', `sizeof') * 6
 charStruct_end:
 
-SECTION "ScanlineBuffer",WRAMX[$DE00]
-MinScanline EQU 16
-ScanlineBuffer:
-	DS (144 - MinScanline) * 2
 
 SECTION "SpriteTable",WRAMX[$DF00]
 SpriteTable:
@@ -69,8 +58,24 @@ HramStart: ; 127 bytes
 ; Permanent section
 SpriteDMA_HiRAM:
 	DS 10
+
+GlobalTimer:
+	DS 1
+WaitingForVBlank: ; 0 = waiting, 1 = busy
+	DS 1
+; TODO: is this a thing we need for acceleration?
+DirButtonStreak: ; Capped at 255
+	DS 1
+JumpButtonStreak:
+	DS 1
+
 JoypadButtons: ; First nybble (left to right) is direction, second is buttons
 	DS 1
+LastButtons:
+	DS 1
+
+FieldX:
+	DS 2
 ActiveObjectsBitfield ; Bit 7 = Object 1, Bit 0 = Object 8
 	DS 1
 ActiveObjectsCount
@@ -79,6 +84,13 @@ TurnInfo:
 	; Bit 7: Team selected by player. 0 = gecko, 1 = snowfox
 	; Bit 6: Team currently on offense
 	DS 1
+
+NextScanlineAction: ; Next scanline's action
+	DS 1
+NextScanlineArg: ; Argument for next scanline's action
+	DS 1
+ScanlineEffectsPointer:
+	DS 2
 
 ; Temp var section
 ; Expect a lot of overlap if I run out of HiRAM

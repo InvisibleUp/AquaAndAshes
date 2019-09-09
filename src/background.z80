@@ -1,106 +1,53 @@
 ; Update parallax background timers
 ; Run once per increment of ScrollX
-incFieldX:
-	ld hl, FieldX
-	ld a, [hl+]
-	ld e, a
-	ld d, [hl]
-	inc de
-	ld a, d
-	ld [hl-], a
-	ld a, e
-	ld [hl], a
+; TODO: This is awful
+; TODO: Update VSCode plugin to do something with below
+; @arg[c]: Amount to scroll by (signed)
+; @clobbers: a, b, h, l
+updateFieldX:
+	ld a, c
+	add a, a ; sign bit of a into carry
+	sbc a, a ; a = 0 if carry == 0, $FF otherwise
+	ld b, a  ; BC = sign extended C
 
-	ld a, [GlobalTimer]
-	ld b, a
-	ld hl, ParallaxLayer1
-
-.Layer1:
-	; Top updates every 4 frames
-	and a, %11
-	jr nz, .Layer2
-	inc [hl]
-.Layer2:
-	inc hl
-	ld b, a
-	call Modulo3
-	or a
-	jr nz, .Layer3
-	inc [hl]
-.Layer3:
-	inc hl
-	rra
-	jr c, .return
-	inc [hl]
-.return:
-	ret
-
-; Update parallax background timers
-; Run once per decrement of ScrollX
-decFieldX:
-	ld hl, FieldX
-	ld a, [hl+]
-	ld d, a
-	ld e, [hl]
-	inc de
-	ld a, e
-	ld [hl-], a
-	ld [hl], d
-
-	ld a, [GlobalTimer]
-	ld b, a
-	ld hl, ParallaxLayer1
-
-.Layer1:
-	; Top updates every 4 frames
-	and a, %11
-	jr nz, .Layer2
-	dec [hl]
-.Layer2:
-	inc hl
-	ld b, a
-	call Modulo3
-	or a
-	jr nz, .Layer3
-	dec [hl]
-.Layer3:
-	inc hl
-	rra
-	jr c, .return
-	dec [hl]
-.return:
-	ret	
-
-; LCD STAT interupt routine for parallax scrolling
-scrollLayer:
-	push af
-
-	; Set scroll position from current scanline
-	ld a, [rLY]
-	sub a, MinScanline ; No scanline effects before minimum (to save RAM)
-	jr c, .exit 
-
-	rla ; Double A (we know carry is 0!)
-
-	push hl
-	ld hl, ScanlineBuffer
-	add a, l
+	ldh a, [FieldX]
 	ld l, a
-	ld a, [hl+]	; Increment HL to next line pointer
-	ldh [rSCX], a
+	ldh a, [FieldX+1]
+	ld h, a
 
-	; Set next scanline
-	ld a, [hl]
-	ldh [rLYC], a
-	pop hl
+	add hl, bc
 
-.exit:
-	pop af
-	reti
+	ld a, h
+	ldh [FieldX+1], a
+	ld a, l
+	ldh [FieldX], a
 
-; Call this after every VBlank
-resetScrollLayer:
-	xor a
-	ldh [rSCX], a
+updateParallax:
+	ld b, a    ; Store low byte of FieldX somewhere
+.Layer1:
+	and a, %111
+	jr nz, .Layer2
 
+	ld a, [ParallaxLayer1]
+	add a, c
+	ld [ParallaxLayer1], a
+	
+.Layer2:
+	ld a, b
+	and a, %11
+	jr nz, .Layer3
+
+	ld a, [ParallaxLayer2]
+	add a, c
+	ld [ParallaxLayer2], a
+
+.Layer3:
+	ld a, b
+	rra ; Low bit of FieldX is whether or not we should scroll
+	ret nc
+
+	ld a, [ParallaxLayer3]
+	add a, c
+	ld [ParallaxLayer3], a
+.return:
 	ret

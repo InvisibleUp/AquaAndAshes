@@ -1,0 +1,78 @@
+; lcdc handlers. mostly just does scrolling but could do other things too.
+lcdc:
+	push af
+	push hl
+
+	ldh a, [NextScanlineAction]
+
+	; Switch on action
+	ld hl, lcdc_scroll_rel
+	add a, l
+	ld l, a
+
+	ldh a, [NextScanlineArg]
+	jp hl
+
+; Apply the relative scroll offset (relative to last scanline's rSCX value)
+lcdc_scroll_rel:
+	ld l, a
+	ldh a, [rSCX]   ; Get old rSCX value 
+	add a, l        ; Add commandline arg 
+	; fall through
+
+; Apply the absolute scroll offset
+lcdc_scroll_abs:
+	ldh [rSCX], a   ; Set rSCX to proper offset
+	jr lcdc_exit 
+
+; Set effects offset pointer's lsb to the argument
+lcdc_seek:
+	sub a, 3
+	ld [ScanlineEffectsPointer+1], a
+
+; this should be jumped to after every lcdc command
+lcdc_exit:       ; $C
+	ld hl, ScanlineEffectsPointer+1
+	ld a, [hl]
+	add a, 3
+	ld [hl-], a
+
+	; Set the next scanline action/arg/line
+	ld a, [hl]
+	ld h, a
+	ld a, [ScanlineEffectsPointer+1]
+	ld l, a
+
+	ld a, [hl+]
+	ldh [NextScanlineAction], a
+	ld a, [hl+]
+	ldh [rLYC], a
+	ld a, [hl]
+	ldh [NextScanlineArg], a
+
+	pop hl
+	pop af
+	reti
+
+; Handler equates
+LCDC_CMD_SCROLL_REL EQU (lcdc_scroll_rel - lcdc_scroll_rel)
+LCDC_CMD_SCROLL_ABS EQU (lcdc_scroll_abs - lcdc_scroll_rel)
+LCDC_CMD_SEEK       EQU (lcdc_seek - lcdc_scroll_rel)
+LCDC_CMD_NOOP       EQU (lcdc_exit - lcdc_scroll_rel)
+
+; Vertical blank
+vblank:
+    ; Jumping here clears vblank flag automatically
+    push af
+    ld a, [WaitingForVBlank]
+    jr nz, .return ; Lag!
+
+    call SpriteDMA_HiRAM ; Update sprites
+    
+    ; Finish
+    ld a, 1
+    ld [WaitingForVBlank], a
+
+.return:
+    pop af
+reti
