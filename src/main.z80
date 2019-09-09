@@ -219,8 +219,21 @@ GameLoop:
     call TickAllObjects
 
     ; Prepare graphics data
-    ;call MoveFieldX
-    ld c, 1
+
+    ; TEST: Scroll with player
+    ;ld hl, charArray + _get(`charStruct', `dx')
+    ;ld c, [hl]
+
+    ; TEST: Scroll at 2.5 pixels/sec
+    ldh a, [GlobalTimer]
+    rra
+    ld a, 1
+    adc a, a
+    ld c, a
+
+    ; TEST: Scroll at one pixel/sec
+    ;ld c, 1
+
     call updateFieldX
     call PrepareAllObjects
 

@@ -23,31 +23,22 @@ updateFieldX:
 	ldh [FieldX], a
 
 updateParallax:
-	ld b, a    ; Store low byte of FieldX somewhere
+	ld b, a
 .Layer1:
-	and a, %111
-	jr nz, .Layer2
-
-	ld a, [ParallaxLayer1]
-	add a, c
+	sra a
+	sra a
+	sra a
 	ld [ParallaxLayer1], a
 	
 .Layer2:
 	ld a, b
-	and a, %11
-	jr nz, .Layer3
-
-	ld a, [ParallaxLayer2]
-	add a, c
+	sra a
+	sra a
 	ld [ParallaxLayer2], a
 
 .Layer3:
 	ld a, b
-	rra ; Low bit of FieldX is whether or not we should scroll
-	ret nc
-
-	ld a, [ParallaxLayer3]
-	add a, c
+	sra a
 	ld [ParallaxLayer3], a
 .return:
 	ret
